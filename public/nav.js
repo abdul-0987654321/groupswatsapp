@@ -1,4 +1,10 @@
 // Shared top navigation for all dashboard pages.
+function langSwitch() {
+  const cur = window.dashboardLang || 'de';
+  return '<span class="lang-switch" role="group" aria-label="Sprache">' +
+    ['de', 'en'].map((l) => `<button type="button" class="${cur === l ? 'on' : ''}" onclick="setDashboardLang('${l}')">${l.toUpperCase()}</button>`).join('') +
+    '</span>';
+}
 (function () {
   const links = [
     ['/', 'Übersicht'],
@@ -11,7 +17,7 @@
   document.getElementById('nav').outerHTML =
     '<header class="top"><span class="brand">Coaching-Dashboard</span><nav>' +
     links.map(([href, label]) => `<a href="${href}" class="${active(href) ? 'active' : ''}">${label}</a>`).join('') +
-    '</nav><form method="post" action="/logout"><button type="submit">Abmelden</button></form></header>';
+    '</nav><div class="right">' + langSwitch() + '<form method="post" action="/logout"><button type="submit">Abmelden</button></form></div></header>';
   // Badge with the number of open reviews
   fetch('/api/reviews').then((r) => (r.ok ? r.json() : null)).then((d) => {
     const n = d?.rows?.length || 0;

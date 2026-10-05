@@ -5,10 +5,12 @@
 <title>Anmeldung – Coaching-Dashboard</title>
 <link rel="stylesheet" href="/style.css">
 <link rel="icon" href="data:,">
+<script src="/i18n.js"></script>
 </head>
 <body>
 <main>
   <form class="card login" method="post" action="/login">
+    <span id="langSwitch"></span>
     <h1>Coaching-Dashboard</h1>
     <p class="muted">Bitte melde dich mit dem Dashboard-Passwort an.</p>
     <p id="err" class="banner err" hidden>Falsches Passwort.</p>
@@ -16,6 +18,8 @@
     <button class="primary" type="submit">Anmelden</button>
   </form>
 </main>
-<script>if (location.search.includes('fehler')) document.getElementById('err').hidden = false;</script>
+<script>
+document.getElementById('langSwitch').outerHTML = '<span class="lang-switch">' + ['de', 'en'].map((l) => `<button type="button" class="${(window.dashboardLang || 'de') === l ? 'on' : ''}" onclick="setDashboardLang('${l}')">${l.toUpperCase()}</button>`).join('') + '</span>';
+if (location.search.includes('fehler')) document.getElementById('err').hidden = false;</script>
 </body>
 </html>

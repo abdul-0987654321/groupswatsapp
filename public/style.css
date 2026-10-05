@@ -88,3 +88,11 @@ ul.checks li { padding: 3px 0; } ul.checks .ok { color: var(--green); } ul.check
 .badge { white-space: nowrap; }
 .tile .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .tile .stats b { font-size: 18px; }
+.lang-switch { display: inline-flex; border: 1px solid #3a4a68; border-radius: 7px; overflow: hidden; }
+.lang-switch button { border: none; border-radius: 0; background: transparent; color: #c8d3e6; padding: 6px 10px; font-size: 13px; }
+.lang-switch button.on { background: rgba(255,255,255,.18); color: #fff; font-weight: 600; }
+.login .lang-switch { border-color: var(--border); float: right; }
+.login .lang-switch button { color: var(--muted); }
+.login .lang-switch button.on { background: #e8eefb; color: var(--accent); }
+header.top .right { display: flex; gap: 8px; align-items: center; }
+@media (max-width: 700px) { header.top .right { order: 2; } }
