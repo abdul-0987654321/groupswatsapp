@@ -67,12 +67,22 @@ async function loadConv(keepScroll) {
       <div><b>${esc(c.name)}</b><div class="muted" style="font-size:13px">${esc(c.phone || '')}${c.id ? ' · ' + esc(c.id) : ''}${c.coachingName ? ' · ' + esc(c.coachingName) : ''}</div></div>
       ${c.stageLabel ? `<span class="pill" style="background:#eef1f5">${esc(c.stageLabel)}</span>` : ''}
       ${latest ? `${statusPill(latest.status)} <a href="#" data-open="${esc(latest.id)}">Beleg ${esc(latest.id)} öffnen</a>` : ''}
+      <button class="danger" id="del" style="margin-left:auto">Chat löschen</button>
     </div>
     <div class="chat">${renderChat(d.messages)}</div>`;
   const chat = conv.querySelector('.chat');
   if (!keepScroll || atBottom) chat.scrollTop = chat.scrollHeight;
   else chat.scrollTop = oldChat.scrollTop;
   conv.querySelectorAll('[data-open]').forEach((a) => a.addEventListener('click', (ev) => { ev.preventDefault(); openPayment(a.dataset.open, () => { loadList(); loadConv(true); }); }));
+  document.getElementById('del').onclick = async () => {
+    if (!confirm('Chat, Kundendaten und Zahlungen dieser Nummer löschen? Die Nummer startet danach komplett neu (wie ein neuer Kunde). Das kann nicht rückgängig gemacht werden.')) return;
+    try {
+      await api('/api/chats/' + encodeURIComponent(current) + '/delete', { method: 'POST', body: '{}' });
+      current = null; history.replaceState(null, '', '/chats'); box.classList.remove('open');
+      document.getElementById('conv').innerHTML = '<div class="empty">Chat gelöscht.</div>';
+      loadList();
+    } catch (e) { alert(e.message); }
+  };
   document.getElementById('back').onclick = () => { current = null; history.replaceState(null, '', '/chats'); box.classList.remove('open'); drawList(); };
 }
 

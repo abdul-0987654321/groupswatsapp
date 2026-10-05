@@ -119,4 +119,19 @@ function chatHistory(jid) {
   return db.all('chat').filter((m) => ids.has(m.jid)).sort((a, b) => a.at.localeCompare(b.at));
 }
 
-module.exports = { STAGES, identify, getOrCreate, save, get, all, displayName, logChat, updateChat, chatHistory, phoneFromJid };
+/**
+ * Deletes a customer completely (record, chat, payments) so the number starts fresh.
+ * Screenshots stay in Drive. Returns what was removed.
+ */
+function deleteCustomer(jid) {
+  const c = get(jid);
+  const ids = new Set([jid, c?.lid, c?.replyJid].filter(Boolean));
+  let chat = 0;
+  let pays = 0;
+  for (const m of db.all('chat')) if (ids.has(m.jid)) { db.remove('chat', m.id); chat++; }
+  for (const p of db.all('payments')) if (ids.has(p.jid)) { db.remove('payments', p.id); pays++; }
+  if (c) db.remove('customers', c.jid);
+  return { customer: Boolean(c), chat, payments: pays };
+}
+
+module.exports = { deleteCustomer, STAGES, identify, getOrCreate, save, get, all, displayName, logChat, updateChat, chatHistory, phoneFromJid };

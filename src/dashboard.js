@@ -252,6 +252,12 @@ function mount(app) {
     }
   });
 
+  app.post('/api/chats/:jid/delete', wrap(async (req) => {
+    const removed = customers.deleteCustomer(req.params.jid);
+    await db.flush();
+    return { ok: true, removed };
+  }));
+
   // ---- Admin alerts ----
   app.post('/api/alerts/test', wrap(() => require('./alerts').sendTest()));
 

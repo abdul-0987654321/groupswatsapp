@@ -65,7 +65,9 @@
     'SHEET_WEBHOOK_URL ist nicht gesetzt – Daten werden nur im Arbeitsspeicher gehalten und gehen beim Neustart verloren.':
       'SHEET_WEBHOOK_URL is not set – data is only kept in memory and is lost on restart.',
     'Bot-Sprache': 'Bot language', 'Gespeichert ✓': 'Saved ✓',
-    'Chats': 'Chats', 'Wähle links einen Chat aus.': 'Select a chat on the left.', 'Keine Chats.': 'No chats.', 'Keine Datei': 'No file',
+    'Chats': 'Chats', 'Chat löschen': 'Delete chat', 'Chat gelöscht.': 'Chat deleted.',
+    'Chat, Kundendaten und Zahlungen dieser Nummer löschen? Die Nummer startet danach komplett neu (wie ein neuer Kunde). Das kann nicht rückgängig gemacht werden.':
+      "Delete this number's chat, customer data and payments? The number then starts completely fresh (like a new customer). This cannot be undone.", 'Wähle links einen Chat aus.': 'Select a chat on the left.', 'Keine Chats.': 'No chats.', 'Keine Datei': 'No file',
     '📄 PDF öffnen': '📄 Open PDF', 'Bild': 'Image',
     'neu': 'new', 'wählt Coaching': 'choosing coaching', 'wartet auf Beleg': 'waiting for receipt', 'freigeschaltet': 'unlocked',
     'Admin-Benachrichtigungen': 'Admin alerts',

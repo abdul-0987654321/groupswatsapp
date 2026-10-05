@@ -321,3 +321,19 @@ test('receipt chat entries link to the screenshot and the payment', async () => 
   assert.strictEqual(entry.paymentId, p.id);
   assert.strictEqual(entry.fileId, p.screenshotFileId);
 });
+
+test('deleting a customer lets the same number start fresh (and reuse its screenshot)', async () => {
+  const queue = [goodReceipt(75), goodReceipt(75)];
+  const h = await createHarness({ receipts: { next: () => queue.shift() } });
+  require('../src/config').getCoaching('C1').groupLink = 'https://chat.whatsapp.com/TEST-SPORT';
+  const jid = h.phoneJid(40);
+  const shot = await img(40);
+  await h.say(h.textMsg(jid, 'Sport'));
+  await h.say(h.imageMsg(jid, shot));
+  assert.strictEqual(h.customers.get(jid).stage, 'verified');
+  const removed = h.customers.deleteCustomer(jid);
+  assert.deepStrictEqual({ ...removed, chat: removed.chat > 0 }, { customer: true, chat: true, payments: 1 });
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'Hallo')), ['Willkommen! Für welches Coaching interessierst du dich?']);
+  await h.say(h.textMsg(jid, 'Sport'));
+  assert.match((await h.say(h.imageMsg(jid, shot)))[0], /^Zahlung bestätigt ✅/, 'no duplicate after reset');
+});
