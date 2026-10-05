@@ -14,7 +14,7 @@ const msgs = require('./messages');
 const customers = require('./customers');
 const payments = require('./payments');
 const { getCoaching } = require('./config');
-const { detectCoaching, keywordMatches } = require('./coaching-detect');
+const { detectCoaching, keywordMatches, isOnlyGreeting, wantsChange } = require('./coaching-detect');
 
 const { STAGES } = customers;
 let bot = null;
@@ -118,11 +118,22 @@ async function handleMessage(msg) {
   switch (customer.stage) {
     case STAGES.VERIFIED: {
       const paid = payments.latestVerified(customer.jid);
-      if (paid) return sendGroupLink(customer, paid, { again: true });
-      // Verified flag without a payment (e.g. record edited by hand): start over.
-      customer.stage = STAGES.ASK_COACHING;
-      customers.save(customer);
-      return reply(customer, msgs.askCoaching());
+      if (!paid) {
+        // Verified flag without a payment (e.g. record edited by hand): start over.
+        customer.stage = STAGES.ASK_COACHING;
+        customers.save(customer);
+        return reply(customer, msgs.askCoaching());
+      }
+      // Naming a different coaching clearly = buying an additional one.
+      const hits = keywordMatches(text);
+      if (!media && hits.length === 1 && hits[0] !== paid.coachingId) return startCoaching(customer, getCoaching(hits[0]));
+      const coaching = getCoaching(paid.coachingId);
+      if (!media && wantsChange(text) && coaching?.groupLink) {
+        await reply(customer, msgs.alreadyVerifiedOther(coaching));
+        payments.markLinkSent(paid.id);
+        return;
+      }
+      return sendGroupLink(customer, paid, { again: true });
     }
 
     case STAGES.IN_REVIEW:
@@ -131,10 +142,20 @@ async function handleMessage(msg) {
 
     case STAGES.AWAITING_SCREENSHOT: {
       if (media) return handleReceipt(customer, msg, media);
-      // Customer changes their mind ("doch lieber Money") — only on a clear keyword, never via AI.
+      const current = getCoaching(customer.coachingId);
+      // Clear keyword: switch to that coaching (or repeat the details for the same one).
       const hits = keywordMatches(text);
-      if (hits.length === 1 && hits[0] !== customer.coachingId) return startCoaching(customer, getCoaching(hits[0]));
-      return reply(customer, msgs.remindScreenshot());
+      if (hits.length === 1) return startCoaching(customer, getCoaching(hits[0]));
+      // "I want to change group" → ask again which coaching.
+      if (wantsChange(text) || !current) {
+        customer.stage = STAGES.ASK_COACHING;
+        customer.coachingId = null;
+        customers.save(customer);
+        return reply(customer, msgs.changeCoaching());
+      }
+      // "Hi" again → repeat price + bank details, they may have lost them.
+      if (isOnlyGreeting(text)) return reply(customer, msgs.price(current));
+      return reply(customer, msgs.remindScreenshot(current));
     }
 
     case STAGES.NEW:

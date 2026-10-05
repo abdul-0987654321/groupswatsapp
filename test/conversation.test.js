@@ -85,8 +85,9 @@ test('text instead of screenshot → reminder; clear keyword switches coaching',
   const h = await createHarness();
   const jid = h.phoneJid(6);
   await h.say(h.textMsg(jid, 'Sport'));
-  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'ok mache ich gleich')), [
-    'Bitte schick mir einen Screenshot deiner Überweisung (als Bild oder PDF), damit ich die Zahlung prüfen kann.',
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'mache ich gleich')), [
+    'Du hast das Sport Coaching gewählt (75 €). Bitte schick mir einen Screenshot deiner Überweisung (als Bild oder PDF), damit ich die Zahlung prüfen kann.\n' +
+      'Möchtest du ein anderes Coaching? Schreib mir einfach, welches.',
   ]);
   const [out] = await h.say(h.textMsg(jid, 'doch lieber Geld'));
   assert.match(out, /^Das Money Coaching kostet 80 €/);
@@ -223,12 +224,34 @@ test('bot language switch: English replies, setting stored', async () => {
   assert.strictEqual(h.db.get('settings', 'botLanguage').value, '"en"');
   assert.throws(() => settings.set('botLanguage', 'fr'), /Ungültiger Wert/);
   settings.set('botLanguage', 'de');
-  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'ok')), [
-    'Bitte schick mir einen Screenshot deiner Überweisung (als Bild oder PDF), damit ich die Zahlung prüfen kann.',
-  ]);
+  assert.match((await h.say(h.textMsg(jid, 'ok')))[0], /^Das Money Coaching kostet 80 €/); // greeting/ack → details again
 });
 
 test('German and English texts cover the same messages', () => {
   const { TEXTS } = require('../src/messages');
   assert.deepStrictEqual(Object.keys(TEXTS.en).sort(), Object.keys(TEXTS.de).sort());
+});
+
+test('mid-payment: "Hi" repeats the details, "I want to change group" asks again (real chat from testing)', async () => {
+  const h = await createHarness();
+  require('../src/settings').set('botLanguage', 'en');
+  const jid = h.phoneJid(18);
+  await h.say(h.textMsg(jid, 'Sport'));
+  assert.match((await h.say(h.textMsg(jid, 'Hi')))[0], /^The Sport Coaching costs 75 €\. Please transfer to:/);
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'I want to change group')), ['No problem! Which coaching are you interested in?']);
+  assert.strictEqual(h.customers.get(jid).stage, 'ask_coaching');
+  assert.match((await h.say(h.textMsg(jid, 'money')))[0], /^The Money Coaching costs 80 €/);
+  assert.match((await h.say(h.textMsg(jid, 'when?')))[0], /^You chose the Money Coaching \(80 €\)\./);
+});
+
+test('verified customer: same link again, change request offers another coaching, naming one starts a new purchase', async () => {
+  const queue = [goodReceipt(75)];
+  const h = await createHarness({ receipts: { next: () => queue.shift() } });
+  require('../src/config').getCoaching('C1').groupLink = 'https://chat.whatsapp.com/TEST-SPORT';
+  const jid = h.phoneJid(19);
+  await h.say(h.textMsg(jid, 'Sport'));
+  await h.say(h.imageMsg(jid, await img(20)));
+  assert.match((await h.say(h.textMsg(jid, 'I want to change group')))[0], /^Du bist bereits für das Sport Coaching freigeschaltet ✅ Hier ist dein Link: https:\/\/chat\.whatsapp\.com\/TEST-SPORT\nMöchtest du zusätzlich/);
+  assert.match((await h.say(h.textMsg(jid, 'Money bitte')))[0], /^Das Money Coaching kostet 80 €/);
+  assert.strictEqual(h.customers.get(jid).stage, 'awaiting_screenshot');
 });

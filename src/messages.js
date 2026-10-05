@@ -26,8 +26,13 @@ const TEXTS = {
       accountLines('de') +
       `Verwendungszweck: Dein Name + ${c.name}\n` +
       `Schick mir danach einen Screenshot deiner Überweisung.`,
-    remindScreenshot: () =>
-      'Bitte schick mir einen Screenshot deiner Überweisung (als Bild oder PDF), damit ich die Zahlung prüfen kann.',
+    remindScreenshot: (c) =>
+      `Du hast das ${c.name} gewählt (${price(c)}). Bitte schick mir einen Screenshot deiner Überweisung (als Bild oder PDF), damit ich die Zahlung prüfen kann.\n` +
+      'Möchtest du ein anderes Coaching? Schreib mir einfach, welches.',
+    changeCoaching: () => 'Kein Problem! Für welches Coaching interessierst du dich?',
+    alreadyVerifiedOther: (c) =>
+      `Du bist bereits für das ${c.name} freigeschaltet ✅ Hier ist dein Link: ${c.groupLink}\n` +
+      'Möchtest du zusätzlich ein anderes Coaching? Schreib mir einfach, welches.',
     verified: (c) => `Zahlung bestätigt ✅ Hier ist dein Link zur Coaching-Gruppe: ${c.groupLink}`,
     verifiedLinkPending: () => 'Zahlung bestätigt ✅ Den Link zur Coaching-Gruppe bekommst du in Kürze.',
     alreadyVerified: (c) => `Du bist bereits freigeschaltet ✅ Hier ist dein Link zur Coaching-Gruppe: ${c.groupLink}`,
@@ -45,7 +50,13 @@ const TEXTS = {
       accountLines('en') +
       `Reference: Your name + ${c.name}\n` +
       `Then send me a screenshot of your transfer.`,
-    remindScreenshot: () => 'Please send me a screenshot of your transfer (as an image or PDF) so I can check the payment.',
+    remindScreenshot: (c) =>
+      `You chose the ${c.name} (${price(c)}). Please send me a screenshot of your transfer (as an image or PDF) so I can check the payment.\n` +
+      'Would you like a different coaching? Just tell me which one.',
+    changeCoaching: () => 'No problem! Which coaching are you interested in?',
+    alreadyVerifiedOther: (c) =>
+      `You are already unlocked for the ${c.name} ✅ Here is your link: ${c.groupLink}\n` +
+      'Would you like an additional coaching? Just tell me which one.',
     verified: (c) => `Payment confirmed ✅ Here is your link to the coaching group: ${c.groupLink}`,
     verifiedLinkPending: () => 'Payment confirmed ✅ You will receive the link to the coaching group shortly.',
     alreadyVerified: (c) => `You are already unlocked ✅ Here is your link to the coaching group: ${c.groupLink}`,

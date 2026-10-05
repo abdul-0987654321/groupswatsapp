@@ -70,6 +70,15 @@ function keywordMatches(text) {
   return hits;
 }
 
+// "I want to change group", "anderes Coaching", "wechseln" …
+const CHANGE_WORDS = new Set([
+  'change', 'switch', 'other', 'another', 'different', 'instead', 'wrong', 'cancel',
+  'wechseln', 'wechsel', 'aendern', 'andere', 'anderes', 'anderen', 'tauschen', 'stattdessen', 'falsch', 'stornieren',
+]);
+function wantsChange(text) {
+  return tokens(text).some((t) => CHANGE_WORDS.has(t));
+}
+
 function isOnlyGreeting(text) {
   const toks = tokens(text);
   return toks.length === 0 || toks.every((t) => GREETINGS.has(t));
@@ -118,4 +127,4 @@ async function detectCoaching(text, { useAI = true } = {}) {
   return code === 'UNKNOWN' ? { id: null, source: 'ai' } : { id: code, source: 'ai' };
 }
 
-module.exports = { detectCoaching, keywordMatches, normalize, editDistance, isOnlyGreeting };
+module.exports = { detectCoaching, keywordMatches, normalize, editDistance, isOnlyGreeting, wantsChange };
