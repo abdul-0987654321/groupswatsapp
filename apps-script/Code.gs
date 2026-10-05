@@ -20,9 +20,11 @@ function doPost(e) {
   var out;
   try {
     var req = JSON.parse(e.postData.contents);
-    var secret = PropertiesService.getScriptProperties().getProperty('SECRET');
-    if (!secret || req.secret !== secret) {
-      out = { ok: false, error: 'unauthorized' };
+    var secret = String(PropertiesService.getScriptProperties().getProperty('SECRET') || '').trim();
+    if (!secret) {
+      out = { ok: false, error: 'unauthorized: script property SECRET is not set (Project Settings > Script properties)' };
+    } else if (String(req.secret || '').trim() !== secret) {
+      out = { ok: false, error: 'unauthorized: SHEET_SECRET does not match the SECRET script property' };
     } else {
       out = handle_(req);
     }

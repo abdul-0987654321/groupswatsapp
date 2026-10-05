@@ -69,7 +69,13 @@ require('./dashboard').mount(app);
 async function boot() {
   let backend;
   if (process.env.SHEET_WEBHOOK_URL) {
-    backend = createSheetsBackend({ url: process.env.SHEET_WEBHOOK_URL, secret: process.env.SHEET_SECRET });
+    try {
+      backend = createSheetsBackend({ url: process.env.SHEET_WEBHOOK_URL, secret: process.env.SHEET_SECRET });
+    } catch (err) {
+      state.storageError = `Google Sheet nicht erreichbar: ${err.message} – bitte in Render setzen.`;
+      log.error(state.storageError);
+      return; // dashboard + /health keep running and show the error
+    }
   } else {
     state.storageWarning =
       'SHEET_WEBHOOK_URL ist nicht gesetzt – Daten werden nur im Arbeitsspeicher gehalten und gehen beim Neustart verloren.';

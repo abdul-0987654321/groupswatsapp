@@ -9,6 +9,8 @@ const log = require('../log');
 const TIMEOUT_MS = 60000;
 
 function createSheetsBackend({ url, secret }) {
+  url = String(url || '').trim();
+  secret = String(secret || '').trim().replace(/^["']|["']$/g, ''); // tolerate pasted quotes/spaces
   if (!url) throw new Error('SHEET_WEBHOOK_URL is not set');
   if (!secret) throw new Error('SHEET_SECRET is not set');
 
