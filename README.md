@@ -34,7 +34,7 @@ The bank details are in `config/payment.json` and are never written by the AI.
 - **`live`**: the client's account (Ilyas Lang, IBAN, EUR) with the prices from `coachings.json`.
 - **`test`**: your own test account (for example a Pakistani bank or wallet number, PKR) with tiny test prices (`"prices": { "C1": 1, "C2": 2, "C3": 3, "MAIN": 4 }`).
 
-Set `"mode": "test"` or `"mode": "live"` and commit; Render redeploys by itself. In test mode the dashboard shows a red **TESTMODUS** banner. For test accounts, `accountType: "account"` makes the bot show "Kontonummer / Account number + Bank" instead of "IBAN". Number formats like `0300…`, `+92 300…`, masked `****4567`, or an IBAN that ends in the account number all count as a match.
+Set `"mode": "test"` or `"mode": "live"` and commit; Render redeploys by itself. In test mode the dashboard shows a red **TESTMODUS** banner. Optional `"extraAccounts": [...]` lists more accounts that are also accepted as recipient (only the first account is shown to customers). For test accounts, `accountType: "account"` makes the bot show "Kontonummer / Account number + Bank" instead of "IBAN". Number formats like `0300…`, `+92 300…`, masked `****4567`, or an IBAN that ends in the account number all count as a match.
 
 **Going live:**
 1. Set `"mode": "live"` and commit.

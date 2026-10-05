@@ -21,15 +21,20 @@ function loadPayment() {
   for (const f of ['recipient', 'account', 'currency']) {
     if (!profile[f]) throw new Error(`config/payment.json: "${mode}.${f}" is empty`);
   }
+  const toAccount = (a) =>
+    Object.freeze({
+      recipient: String(a.recipient),
+      accountType: a.accountType === 'account' ? 'account' : 'iban',
+      account: String(a.account),
+      bic: a.bic ? String(a.bic) : '',
+      bankName: a.bankName ? String(a.bankName) : '',
+    });
+  // Optional extra accounts that are also accepted as recipient (only the first one is shown to customers).
+  const extra = (profile.extraAccounts || []).filter((a) => a.recipient && a.account).map(toAccount);
   return {
     mode,
-    bank: Object.freeze({
-      recipient: String(profile.recipient),
-      accountType: profile.accountType === 'account' ? 'account' : 'iban',
-      account: String(profile.account),
-      bic: profile.bic ? String(profile.bic) : '',
-      bankName: profile.bankName ? String(profile.bankName) : '',
-    }),
+    bank: toAccount(profile),
+    accounts: Object.freeze([toAccount(profile), ...extra]),
     currency: String(profile.currency).toUpperCase(),
     prices: profile.prices || null,
   };
@@ -37,7 +42,8 @@ function loadPayment() {
 
 const payment = loadPayment();
 const MODE = payment.mode;
-const BANK = payment.bank;
+const BANK = payment.bank; // shown to customers
+const ACCOUNTS = payment.accounts; // all accepted recipient accounts
 const CURRENCY = payment.currency;
 
 function loadCoachings() {
@@ -61,6 +67,7 @@ const coachings = loadCoachings();
 module.exports = {
   MODE,
   BANK,
+  ACCOUNTS,
   CURRENCY,
   coachings,
   getCoaching: (id) => coachings.find((c) => c.id === id) || null,

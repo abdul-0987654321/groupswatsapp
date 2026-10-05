@@ -5,7 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "test": "node --test test/*.test.js"
+    "test": "PAYMENT_MODE=live node --test test/*.test.js"
   },
   "repository": {
     "type": "git",

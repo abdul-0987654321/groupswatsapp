@@ -4,7 +4,7 @@
  * Never rejects automatically: any failed check means a human looks at it.
  */
 
-const { BANK, CURRENCY, coachings } = require('./config');
+const { BANK, ACCOUNTS, CURRENCY, coachings } = require('./config');
 const { formatMoney, normalizeCurrency } = require('./money');
 const { isNearDuplicate } = require('./image-hash');
 
@@ -35,17 +35,17 @@ const normDigits = (s) => {
   return /^92\d{10}$/.test(d) ? '0' + d.slice(2) : d;
 };
 
-/** true = matches, false = readable but different, null = nothing readable */
-function accountMatches(printed) {
-  if (BANK.accountType === 'iban') {
+/** One account: true = matches, false = readable but different, null = nothing readable */
+function matchesOne(acc, printed) {
+  if (acc.accountType === 'iban') {
     const got = normIban(printed);
-    const want = normIban(BANK.account);
+    const want = normIban(acc.account);
     if (!got) return null;
     if (got === want) return true;
     return got.includes('*') ? maskedMatches(got, want, 6) : false;
   }
   const got = normDigits(printed);
-  const want = normDigits(BANK.account);
+  const want = normDigits(acc.account);
   if (!got.replace(/\*/g, '')) return null;
   if (got === want) return true;
   if (got.includes('*')) return maskedMatches(got, want, 4);
@@ -54,22 +54,28 @@ function accountMatches(printed) {
   return shorter.length >= 7 && longer.endsWith(shorter);
 }
 
+/** Matches any accepted recipient account. */
+function accountMatches(printed) {
+  const results = ACCOUNTS.map((acc) => matchesOne(acc, printed));
+  if (results.includes(true)) return true;
+  return results.includes(false) ? false : null;
+}
+
 /** A complete, unmasked number that could be compared in full. */
 function accountFullyReadable(printed) {
-  if (BANK.accountType === 'iban') {
+  if (ACCOUNTS.every((a) => a.accountType === 'iban')) {
     const n = normIban(printed);
     return n.length >= 20 && !n.includes('*');
   }
   const n = normDigits(printed);
-  return !n.includes('*') && n.length >= normDigits(BANK.account).length;
+  return !n.includes('*') && n.length >= Math.min(...ACCOUNTS.map((a) => normDigits(a.account).length));
 }
 
 const ibanMatches = accountMatches; // kept for tests / older callers
 
 function nameMatches(printed) {
   const got = normName(printed);
-  const want = normName(BANK.recipient);
-  return got.length > 0 && want.every((w) => got.includes(w));
+  return got.length > 0 && ACCOUNTS.some((acc) => normName(acc.recipient).every((w) => got.includes(w)));
 }
 
 /** Calendar date (YYYY-MM-DD) of an instant in Berlin time. */
@@ -185,7 +191,7 @@ function verify(extracted, ctx) {
           : `Empfänger stimmt nicht (${[e.recipientName, e.recipientIban].filter(Boolean).join(', ')})`;
     }
   }
-  add('recipient', `Empfänger = ${BANK.recipient}`, recipientOk, recipientDetail);
+  add('recipient', `Empfänger = ${ACCOUNTS.map((a) => a.recipient).join(' / ')}`, recipientOk, recipientDetail);
 
   // 3. Amount = price of the selected coaching (in the configured currency)
   const price = ctx.coaching?.price;

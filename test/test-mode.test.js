@@ -48,3 +48,23 @@ test('test mode: Pakistani receipt checks (number formats, Rs, masked, wrong acc
 });
 
 test.after(() => fs.rmSync(file, { force: true }));
+
+test('extra accepted accounts: payment to the second account (by number or name) passes', () => {
+  const file2 = path.join(os.tmpdir(), `payment-test2-${process.pid}.json`);
+  const cfg = JSON.parse(fs.readFileSync(file, 'utf8'));
+  cfg.test.extraAccounts = [{ recipient: 'Sara Khan', accountType: 'account', account: '03451112223', bankName: 'JazzCash' }];
+  fs.writeFileSync(file2, JSON.stringify(cfg));
+  process.env.PAYMENT_FILE = file2;
+  for (const k of Object.keys(require.cache)) if (k.includes('/src/')) delete require.cache[k];
+  const { verify, accountMatches } = require('../src/verify');
+  const { getCoaching } = require('../src/config');
+  assert.strictEqual(accountMatches('0345 1112223'), true);
+  assert.strictEqual(accountMatches('0300 1234567'), true);
+  const r = verify(
+    { isPaymentReceipt: true, recipientName: 'SARA KHAN', recipientIban: null, amount: 2, currency: 'PKR', date: 'Today', senderName: 'X', reference: null, bankApp: 'JazzCash' },
+    { coaching: getCoaching('C2'), receivedAt: new Date().toISOString(), previousPayments: [] }
+  );
+  assert.deepStrictEqual(r.reasons, []);
+  fs.rmSync(file2, { force: true });
+  process.env.PAYMENT_FILE = file;
+});
