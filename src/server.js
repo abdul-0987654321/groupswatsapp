@@ -10,6 +10,7 @@ const { createSheetsBackend } = require('./storage/backend-sheets');
 const { createMemoryBackend } = require('./storage/backend-memory');
 const bot = require('./bot');
 const auth = require('./auth');
+const conversation = require('./conversation');
 
 const PORT = Number(process.env.PORT || 3000);
 const startedAt = new Date().toISOString();
@@ -82,12 +83,7 @@ async function boot() {
     }
   }
 
-  try {
-    require('./conversation').attach(bot);
-  } catch (err) {
-    if (err.code !== 'MODULE_NOT_FOUND') throw err;
-    log.warn('Conversation module not present yet — incoming messages are ignored.');
-  }
+  conversation.attach(bot);
   state.ready = true;
   await bot.start();
 }
