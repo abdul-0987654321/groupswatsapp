@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WhatsApp-Status – Coaching-Dashboard</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div id="nav"></div>
+<main>
+  <h1>WhatsApp-Status</h1>
+  <div id="banners"></div>
+  <div class="card">
+    <div class="row"><span id="dot" class="dot grey"></span><strong id="statusText">Lade…</strong></div>
+    <p id="details" class="muted"></p>
+    <div id="qrBox" class="qr" hidden>
+      <p>Öffne WhatsApp auf dem Bot-Handy → <b>Einstellungen → Verknüpfte Geräte → Gerät hinzufügen</b> und scanne diesen Code:</p>
+      <img id="qr" alt="QR-Code">
+      <p class="muted">Der Code erneuert sich automatisch.</p>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button id="connect">Verbinden</button>
+      <button id="relink" class="danger">Neu verknüpfen (neuer QR-Code)</button>
+    </div>
+  </div>
+</main>
+<script src="/nav.js"></script>
+<script>
+const LABELS = {
+  connected: ['green', 'Verbunden'], qr: ['yellow', 'Nicht verbunden – QR-Code scannen'],
+  starting: ['yellow', 'Verbindung wird aufgebaut…'], reconnecting: ['yellow', 'Verbindung unterbrochen – neuer Versuch läuft…'],
+  replaced: ['red', 'Von einer anderen Instanz übernommen'], stopped: ['red', 'Getrennt'],
+};
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+async function refresh() {
+  const res = await fetch('/api/whatsapp');
+  if (res.status === 401) return (location.href = '/login');
+  const s = await res.json();
+  const [color, text] = LABELS[s.status] || ['grey', s.status];
+  document.getElementById('dot').className = 'dot ' + color;
+  document.getElementById('statusText').textContent = text;
+  const parts = [];
+  if (s.me?.id) parts.push('Nummer: ' + esc(s.me.id.split(':')[0].split('@')[0]) + (s.me.name ? ' (' + esc(s.me.name) + ')' : ''));
+  if (s.connectedAt) parts.push('verbunden seit ' + new Date(s.connectedAt).toLocaleString('de-DE'));
+  if (s.lastDisconnect && s.status !== 'connected') parts.push('letzte Trennung: ' + new Date(s.lastDisconnect.at).toLocaleString('de-DE') + ' (Code ' + esc(s.lastDisconnect.code) + ')');
+  document.getElementById('details').innerHTML = parts.join(' · ');
+  document.getElementById('qrBox').hidden = !s.qrDataUrl;
+  if (s.qrDataUrl) document.getElementById('qr').src = s.qrDataUrl;
+  const b = [];
+  if (s.storageError) b.push('<div class="banner err">' + esc(s.storageError) + '</div>');
+  if (s.storageWarning) b.push('<div class="banner warn">' + esc(s.storageWarning) + '</div>');
+  if (s.storage?.lastFlushError) b.push('<div class="banner err">Speichern im Google Sheet fehlgeschlagen: ' + esc(s.storage.lastFlushError) + '</div>');
+  document.getElementById('banners').innerHTML = b.join('');
+}
+document.getElementById('connect').onclick = async () => { await fetch('/api/whatsapp/connect', { method: 'POST' }); refresh(); };
+document.getElementById('relink').onclick = async () => {
+  if (!confirm('Die aktuelle WhatsApp-Verknüpfung wird getrennt. Danach musst du einen neuen QR-Code scannen. Fortfahren?')) return;
+  await fetch('/api/whatsapp/relink', { method: 'POST' }); refresh();
+};
+refresh(); setInterval(refresh, 3000);
+</script>
+</body>
+</html>

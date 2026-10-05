@@ -1,0 +1,31 @@
+{
+  "name": "coaching-payment-bot",
+  "version": "2.0.0",
+  "description": "WhatsApp Zahlungsprüfungs-Bot für Coachings (Baileys + Google Sheets + OpenAI)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abdul-0987654321/groupswatsapp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/abdul-0987654321/groupswatsapp/issues"
+  },
+  "homepage": "https://github.com/abdul-0987654321/groupswatsapp#readme",
+  "dependencies": {
+    "@itsliaaa/baileys": "0.3.18-final",
+    "dotenv": "^18.0.5",
+    "express": "^4.22.3",
+    "openai": "^7.28.0",
+    "pino": "^10.4.0",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.35.5"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=22.12"
+  }
+}

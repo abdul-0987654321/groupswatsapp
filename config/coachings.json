@@ -1,0 +1,6 @@
+{
+  "C1":   { "name": "Sport Coaching", "keywords": ["sport"], "price": 75, "groupLink": "" },
+  "C2":   { "name": "Money Coaching", "keywords": ["money", "geld"], "price": 80, "groupLink": "" },
+  "C3":   { "name": "Lang Coaching",  "keywords": ["lang", "sprache", "language"], "price": 85, "groupLink": "" },
+  "MAIN": { "name": "Main Coaching",  "keywords": ["main", "haupt"], "price": 90, "groupLink": "" }
+}
