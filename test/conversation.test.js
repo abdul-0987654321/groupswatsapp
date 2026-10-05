@@ -196,3 +196,16 @@ test('if OpenAI fails, the receipt goes to review (never lost, never rejected)',
   assert.match(p.reasons[0], /^Beleg konnte nicht automatisch gelesen werden/);
   assert.ok(p.screenshotFileId, 'screenshot still stored');
 });
+
+test('admin decisions are refused while WhatsApp is disconnected (customer must always be told)', async () => {
+  const queue = [goodReceipt(1)];
+  const h = await createHarness({ receipts: { next: () => queue.shift() } });
+  const jid = h.phoneJid(16);
+  await h.say(h.textMsg(jid, 'Sport'));
+  await h.say(h.imageMsg(jid, await img(10)));
+  const [p] = h.payments.all();
+  h.setConnected(false);
+  await assert.rejects(h.conversation.approvePayment(p.id), /WhatsApp ist nicht verbunden/);
+  await assert.rejects(h.conversation.rejectPayment(p.id), /WhatsApp ist nicht verbunden/);
+  assert.strictEqual(h.payments.get(p.id).status, 'NEEDS_REVIEW');
+});

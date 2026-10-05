@@ -45,6 +45,7 @@ async function createHarness({ classify = () => 'UNKNOWN', receipts = {} } = {})
   let connected = true;
   const fakeBot = {
     onMessage() {},
+    isConnected: () => connected,
     async sendText(jid, text) {
       if (!connected) throw new Error('WhatsApp ist nicht verbunden');
       sent.push({ jid, text });

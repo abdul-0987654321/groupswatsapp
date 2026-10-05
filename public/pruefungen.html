@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Offene Prüfungen – Coaching-Dashboard</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="icon" href="data:,">
+</head>
+<body>
+<div id="nav"></div>
+<main>
+  <h1>Offene Prüfungen</h1>
+  <p class="muted">Alle Belege, die nicht automatisch bestätigt werden konnten – über alle Coachings. Älteste zuerst.</p>
+  <div id="err"></div>
+  <div class="card"><div id="table"></div></div>
+</main>
+<script src="/nav.js"></script>
+<script src="/app.js"></script>
+<script>
+async function load() {
+  try {
+    const d = await api('/api/reviews');
+    const search = document.querySelector('#table input')?.value || '';
+    renderPaymentTable(document.getElementById('table'), d.rows, { showCoaching: true, onChange: load });
+    const input = document.querySelector('#table input'); input.value = search; input.dispatchEvent(new Event('input'));
+  } catch (e) { document.getElementById('err').innerHTML = `<div class="banner err">${esc(e.message)}</div>`; }
+}
+load();
+</script>
+</body>
+</html>

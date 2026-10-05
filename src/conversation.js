@@ -167,7 +167,13 @@ function enqueue(msg) {
 
 // ---------- admin actions (dashboard) ----------
 
+// Decisions always notify the customer, so they are only allowed while WhatsApp is connected.
+function requireConnected() {
+  if (!bot?.isConnected?.()) throw new Error('WhatsApp ist nicht verbunden – bitte zuerst auf der Seite „WhatsApp-Status“ verbinden.');
+}
+
 async function approvePayment(id) {
+  requireConnected();
   const p = payments.get(id);
   if (!p) throw new Error('Zahlung nicht gefunden');
   if (![payments.STATUS.NEEDS_REVIEW, payments.STATUS.REJECTED, payments.STATUS.SUPERSEDED].includes(p.status)) {
@@ -184,6 +190,7 @@ async function approvePayment(id) {
 }
 
 async function rejectPayment(id) {
+  requireConnected();
   const p = payments.get(id);
   if (!p) throw new Error('Zahlung nicht gefunden');
   if (p.status === payments.STATUS.VERIFIED) throw new Error('Bestätigte Zahlungen können nicht abgelehnt werden.');
@@ -199,6 +206,7 @@ async function rejectPayment(id) {
 }
 
 async function resendLink(id) {
+  requireConnected();
   const p = payments.get(id);
   if (!p || p.status !== payments.STATUS.VERIFIED) throw new Error('Nur für bestätigte Zahlungen möglich.');
   const customer = customers.get(p.jid);

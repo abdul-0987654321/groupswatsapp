@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Übersicht – Coaching-Dashboard</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="icon" href="data:,">
+</head>
+<body>
+<div id="nav"></div>
+<main>
+  <h1>Übersicht</h1>
+  <div id="err"></div>
+  <div class="grid" id="kpis"></div>
+  <h2 style="margin-top:8px" id="tilesTitle">Coachings</h2>
+  <div class="grid tiles" id="tiles" style="margin-bottom:16px"></div>
+  <div class="card">
+    <h2>Mitglieder &amp; Umsatz pro <span class="catLabel">Coaching</span></h2>
+    <div class="legend"><span><i style="background:#4b8bf4"></i>Mitglieder</span><span><i style="background:#1a9b55"></i>Umsatz gesamt</span></div>
+    <div class="bars" id="chart"></div>
+  </div>
+</main>
+<script src="/nav.js"></script>
+<script src="/app.js"></script>
+<script>
+async function load() {
+  let d;
+  try { d = await api('/api/overview'); } catch (e) { document.getElementById('err').innerHTML = `<div class="banner err">${esc(e.message)}</div>`; return; }
+  document.querySelectorAll('.catLabel').forEach((el) => (el.textContent = d.categoryLabel));
+  document.getElementById('tilesTitle').textContent = d.categoryLabel + 's';
+  const k = d.kpis;
+  document.getElementById('kpis').innerHTML = [
+    ['Bestätigte Mitglieder gesamt', k.members],
+    ['Umsatz diesen Monat', euro(k.revenueMonth)],
+    ['Umsatz gesamt', euro(k.revenue)],
+    ['Offene Prüfungen', `<a href="/pruefungen">${k.openReviews}</a>`],
+  ].map(([l, v]) => `<div class="card kpi"><div class="label">${l}</div><div class="value">${v}</div></div>`).join('');
+  document.getElementById('tiles').innerHTML = d.categories.map((c) => `
+    <a class="card tile" href="/kategorie/${encodeURIComponent(c.id)}">
+      <h3>${esc(c.name)}${c.openReviews ? ` <span class="badge" title="offene Prüfungen">${c.openReviews} offen</span>` : ''}<span class="price">${euro(c.price)}</span></h3>
+      <div class="stats"><div><b>${c.members}</b><span class="muted">Mitglieder</span></div><div><b>${euro(c.revenue)}</b><span class="muted">Umsatz</span></div></div>
+      ${c.linkConfigured ? '' : '<div class="muted" style="margin-top:8px;color:#8a5a00">⚠ Kein Gruppenlink eingetragen</div>'}
+    </a>`).join('');
+  const maxM = Math.max(1, ...d.categories.map((c) => c.members));
+  const maxR = Math.max(1, ...d.categories.map((c) => c.revenue));
+  document.getElementById('chart').innerHTML = d.categories.map((c) => `
+    <div>${esc(c.name)}</div>
+    <div>
+      <div class="bar-row"><div class="bar members" style="width:${(c.members / maxM) * 80}%"></div>${c.members}</div>
+      <div class="bar-row"><div class="bar revenue" style="width:${(c.revenue / maxR) * 80}%"></div>${euro(c.revenue)}</div>
+    </div>`).join('');
+}
+load(); setInterval(load, 30000);
+</script>
+</body>
+</html>

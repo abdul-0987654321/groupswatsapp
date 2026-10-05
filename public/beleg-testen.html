@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beleg testen – Coaching-Dashboard</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="icon" href="data:,">
+</head>
+<body>
+<div id="nav"></div>
+<main>
+  <h1>Beleg testen</h1>
+  <p class="muted">Prüft einen Beleg genau wie der Bot (OpenAI-Auslesung + alle Prüfungen) – es wird <b>nichts gespeichert</b> und <b>keine Nachricht</b> gesendet. Duplikate werden gegen echte, bereits eingereichte Belege geprüft.</p>
+  <div class="card">
+    <div class="row">
+      <select id="coaching" style="padding:8px;border-radius:7px;border:1px solid var(--border)"></select>
+      <input type="file" id="file" accept="image/*,application/pdf" multiple>
+      <button class="primary" id="go">Prüfen</button>
+    </div>
+  </div>
+  <div id="results"></div>
+</main>
+<script src="/nav.js"></script>
+<script src="/app.js"></script>
+<script>
+api('/api/overview').then((d) => {
+  document.getElementById('coaching').innerHTML = d.categories.map((c) => `<option value="${esc(c.id)}">${esc(c.name)} (${euro(c.price)})</option>`).join('');
+});
+const toBase64 = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(file); });
+document.getElementById('go').onclick = async () => {
+  const files = Array.from(document.getElementById('file').files);
+  const out = document.getElementById('results');
+  if (!files.length) return alert('Bitte Datei auswählen');
+  out.innerHTML = '';
+  for (const f of files) {
+    const box = document.createElement('div'); box.className = 'card'; box.innerHTML = `<h2>${esc(f.name)}</h2><p class="muted">Wird geprüft…</p>`; out.appendChild(box);
+    try {
+      const r = await api('/api/test-receipt', { method: 'POST', body: JSON.stringify({ coachingId: document.getElementById('coaching').value, mimeType: f.type, base64: await toBase64(f) }) });
+      const e = r.extracted;
+      box.innerHTML = `<h2>${esc(f.name)} → ${statusPill(r.status)}</h2>
+        <dl class="kv">${[['Empfänger', e.recipientName], ['IBAN', e.recipientIban], ['Betrag', e.amount == null ? null : e.amount + ' ' + (e.currency || '')], ['Datum', [e.date, e.time].filter(Boolean).join(' ')], ['→ Zahlungsdatum', dateDE(r.paymentDate)], ['Absender', r.senderName], ['Verwendungszweck', e.reference], ['Bank / App', e.bankApp]].map(([k, v]) => `<dt>${k}</dt><dd>${v == null || v === '' ? '–' : esc(v)}</dd>`).join('')}</dl>
+        <ul class="checks" style="margin-top:10px">${r.checks.map((c) => `<li class="${c.ok ? 'ok' : 'fail'}">${c.ok ? '✓' : '✗'} ${esc(c.label)}${c.detail ? ' – ' + esc(c.detail) : ''}</li>`).join('')}</ul>`;
+    } catch (err) { box.innerHTML = `<h2>${esc(f.name)}</h2><div class="banner err">${esc(err.message)}</div>`; }
+  }
+};
+</script>
+</body>
+</html>

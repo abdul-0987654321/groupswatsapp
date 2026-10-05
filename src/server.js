@@ -18,7 +18,7 @@ const state = { ready: false, storageError: null, storageWarning: null };
 
 const app = express();
 app.set('trust proxy', 1);
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '20mb' })); // receipt test upload sends the file as base64
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, '..', 'public'), { index: false, extensions: [] })); // static shells only; all data is behind /api + login
 
@@ -56,7 +56,7 @@ app.post('/api/whatsapp/relink', async (req, res) => res.json(await bot.logoutAn
 
 const page = (file) => (req, res) => res.sendFile(path.join(__dirname, '..', 'public', file));
 app.get('/whatsapp', page('whatsapp.html'));
-app.get('/', (req, res) => res.redirect('/whatsapp')); // replaced by the overview page in phase 5
+require('./dashboard').mount(app);
 
 // ---- Startup ----
 async function boot() {
