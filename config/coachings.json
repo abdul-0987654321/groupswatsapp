@@ -1,6 +1,6 @@
 {
-  "C1":   { "name": "Sport Coaching", "keywords": ["sport"], "price": 75, "groupLink": "" },
-  "C2":   { "name": "Money Coaching", "keywords": ["money", "geld"], "price": 80, "groupLink": "" },
-  "C3":   { "name": "Lang Coaching",  "keywords": ["lang", "sprache", "language"], "price": 85, "groupLink": "" },
-  "MAIN": { "name": "Main Coaching",  "keywords": ["main", "haupt"], "price": 90, "groupLink": "" }
+  "C1":   { "name": "Sport Coaching", "keywords": ["sport"], "price": 75, "groupLink": "https://chat.whatsapp.com/GM4tPJhbszvIy6l7czo48p" },
+  "C2":   { "name": "Money Coaching", "keywords": ["money", "geld"], "price": 80, "groupLink": "https://chat.whatsapp.com/JvQCE0kFDRT9i2ZjR9RijS" },
+  "C3":   { "name": "Lang Coaching",  "keywords": ["lang", "sprache", "language"], "price": 85, "groupLink": "https://chat.whatsapp.com/Ex4SmtvdruQ1j3IFpGXOTH" },
+  "MAIN": { "name": "Main Coaching",  "keywords": ["main", "haupt"], "price": 90, "groupLink": "https://chat.whatsapp.com/I9rAlk0SzW82Yl3iJv3yuP" }
 }
