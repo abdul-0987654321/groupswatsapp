@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chats – Coaching-Dashboard</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="icon" href="data:,">
+<script src="/i18n.js"></script>
+</head>
+<body class="chats-page">
+<div id="nav"></div>
+<main style="max-width:1300px">
+  <h1>Chats</h1>
+  <div id="err"></div>
+  <div class="card chats" id="chats">
+    <div class="list">
+      <div class="search"><input type="search" id="q" placeholder="Suche nach Name, ID oder Telefon…" aria-label="Suche"></div>
+      <div class="items" id="items"><p class="muted" style="padding:12px">Lade…</p></div>
+    </div>
+    <div class="conv" id="conv"><div class="empty">Wähle links einen Chat aus.</div></div>
+  </div>
+</main>
+<script src="/nav.js"></script>
+<script src="/app.js"></script>
+<script>
+let rows = [];
+let current = decodeURIComponent(location.hash.slice(1)) || null;
+const box = document.getElementById('chats');
+
+function when(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toDateString() === new Date().toDateString()
+    ? d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+}
+
+function drawList() {
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const digits = q.replace(/\D/g, '');
+  const shown = rows.filter((r) => !q || [r.name, r.customerId].some((v) => String(v).toLowerCase().includes(q)) || (digits.length >= 3 && r.phone.replace(/\D/g, '').includes(digits)));
+  document.getElementById('items').innerHTML = shown.length ? shown.map((r) => `
+    <a class="item ${r.jid === current ? 'active' : ''}" data-jid="${esc(r.jid)}">
+      <div class="top"><span class="name">${esc(r.name)}</span><span class="when">${esc(when(r.lastAt))}</span></div>
+      <div class="snippet">${r.lastDirection === 'out' ? '↩ ' : ''}${esc(r.lastText)}</div>
+      <div class="row" style="gap:6px;margin-top:4px">${r.stageLabel ? `<span class="pill" style="background:#eef1f5">${esc(r.stageLabel)}</span>` : ''}${r.paymentStatus ? statusPill(r.paymentStatus) : ''}<span class="muted" style="font-size:12px">${esc(r.phone)}</span></div>
+    </a>`).join('') : '<p class="muted" style="padding:12px">Keine Chats.</p>';
+}
+
+async function loadList() {
+  try { rows = (await api('/api/chats')).rows; drawList(); }
+  catch (e) { document.getElementById('err').innerHTML = `<div class="banner err">${esc(e.message)}</div>`; }
+}
+
+async function loadConv(keepScroll) {
+  if (!current) return;
+  const conv = document.getElementById('conv');
+  const oldChat = conv.querySelector('.chat');
+  const atBottom = !oldChat || oldChat.scrollHeight - oldChat.scrollTop - oldChat.clientHeight < 60;
+  let d;
+  try { d = await api('/api/chats/' + encodeURIComponent(current)); } catch (e) { conv.innerHTML = `<div class="banner err">${esc(e.message)}</div>`; return; }
+  const c = d.customer;
+  const latest = d.payments[0];
+  conv.innerHTML = `
+    <div class="head">
+      <button class="back" id="back">←</button>
+      <div><b>${esc(c.name)}</b><div class="muted" style="font-size:13px">${esc(c.phone || '')}${c.id ? ' · ' + esc(c.id) : ''}${c.coachingName ? ' · ' + esc(c.coachingName) : ''}</div></div>
+      ${c.stageLabel ? `<span class="pill" style="background:#eef1f5">${esc(c.stageLabel)}</span>` : ''}
+      ${latest ? `${statusPill(latest.status)} <a href="#" data-open="${esc(latest.id)}">Beleg ${esc(latest.id)} öffnen</a>` : ''}
+    </div>
+    <div class="chat">${renderChat(d.messages)}</div>`;
+  const chat = conv.querySelector('.chat');
+  if (!keepScroll || atBottom) chat.scrollTop = chat.scrollHeight;
+  else chat.scrollTop = oldChat.scrollTop;
+  conv.querySelectorAll('[data-open]').forEach((a) => a.addEventListener('click', (ev) => { ev.preventDefault(); openPayment(a.dataset.open, () => { loadList(); loadConv(true); }); }));
+  document.getElementById('back').onclick = () => { current = null; history.replaceState(null, '', '/chats'); box.classList.remove('open'); drawList(); };
+}
+
+document.getElementById('items').addEventListener('click', (e) => {
+  const a = e.target.closest('[data-jid]');
+  if (!a) return;
+  current = a.dataset.jid;
+  history.replaceState(null, '', '#' + encodeURIComponent(current));
+  box.classList.add('open');
+  drawList();
+  loadConv(false);
+});
+document.getElementById('q').addEventListener('input', drawList);
+
+loadList().then(() => { if (current) { box.classList.add('open'); loadConv(false); } });
+setInterval(() => { loadList(); loadConv(true); }, 8000);
+</script>
+</body>
+</html>

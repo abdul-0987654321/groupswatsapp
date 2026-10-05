@@ -10,6 +10,7 @@ function langSwitch() {
   const links = [
     ['/', 'Übersicht'],
     ['/pruefungen', 'Offene Prüfungen'],
+    ['/chats', 'Chats'],
     ['/whatsapp', 'WhatsApp-Status'],
     ['/beleg-testen', 'Beleg testen'],
   ];

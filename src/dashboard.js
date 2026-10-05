@@ -84,6 +84,7 @@ function mount(app) {
   app.get('/kategorie/:id', page('kategorie.html'));
   app.get('/pruefungen', page('pruefungen.html'));
   app.get('/beleg-testen', page('beleg-testen.html'));
+  app.get('/chats', page('chats.html'));
 
   // State-changing API calls must be JSON (blocks cross-site form posts).
   app.use('/api', (req, res, next) => {
@@ -160,7 +161,7 @@ function mount(app) {
       payment: { ...row(p), extracted: p.extracted, checks: p.checks || [], decidedAt: p.decidedAt, decidedBy: p.decidedBy, duplicateOf: p.duplicateOf, hasScreenshot: Boolean(p.screenshotFileId), mimeType: p.mimeType, supersededBy: p.supersededBy || null },
       customer: c ? { id: c.id, name: customers.displayName(c), pushName: c.pushName, phone: c.phone, stage: c.stage, createdAt: c.createdAt } : null,
       otherPayments: payments.forCustomer(p.jid).filter((x) => x.id !== p.id).map(row),
-      chat: customers.chatHistory(p.jid).slice(-200),
+      chat: customers.chatHistory(p.jid).slice(-200).map(chatView),
     };
   }));
 
@@ -180,6 +181,79 @@ function mount(app) {
   app.post('/api/payments/:id/approve', wrap((req) => conversation.approvePayment(req.params.id)));
   app.post('/api/payments/:id/reject', wrap((req) => conversation.rejectPayment(req.params.id)));
   app.post('/api/payments/:id/resend-link', wrap((req) => conversation.resendLink(req.params.id)));
+
+  // ---- Chats ----
+  const STAGE_INFO = {
+    new: 'neu', ask_coaching: 'wählt Coaching', awaiting_screenshot: 'wartet auf Beleg', in_review: 'in Prüfung', verified: 'freigeschaltet',
+  };
+  const chatView = (m) => ({
+    id: m.id, at: m.at, direction: m.direction, text: m.text,
+    hasFile: Boolean(m.fileId), mimeType: m.mimeType || null, paymentId: m.paymentId || null,
+  });
+
+  app.get('/api/chats', wrap(() => {
+    const byJid = new Map();
+    for (const m of db.all('chat')) {
+      const c = customers.get(m.jid) || customers.all().find((x) => x.lid === m.jid || x.replyJid === m.jid);
+      const key = c?.jid || m.jid;
+      const cur = byJid.get(key) || { jid: key, customer: c, last: null, count: 0, incoming: 0 };
+      cur.count++;
+      if (m.direction === 'in') cur.incoming++;
+      if (!cur.last || m.at > cur.last.at) cur.last = m;
+      byJid.set(key, cur);
+    }
+    const rows = Array.from(byJid.values()).map(({ jid, customer: c, last, count, incoming }) => {
+      const latest = payments.forCustomer(jid)[0];
+      return {
+        jid,
+        customerId: c?.id || '',
+        name: customers.displayName(c) || jid,
+        phone: c?.phone || '',
+        stage: c?.stage || '',
+        stageLabel: STAGE_INFO[c?.stage] || '',
+        coachingName: getCoaching(c?.coachingId)?.name || '',
+        lastText: last?.text || '',
+        lastDirection: last?.direction,
+        lastAt: last?.at,
+        count,
+        incoming,
+        paymentStatus: latest?.status || null,
+        paymentId: latest?.id || null,
+      };
+    });
+    rows.sort((a, b) => String(b.lastAt).localeCompare(String(a.lastAt)));
+    return { ok: true, rows };
+  }));
+
+  app.get('/api/chats/:jid', wrap((req) => {
+    const jid = req.params.jid;
+    const c = customers.get(jid);
+    const ps = payments.forCustomer(jid);
+    return {
+      ok: true,
+      customer: c
+        ? { jid: c.jid, id: c.id, name: customers.displayName(c), pushName: c.pushName, phone: c.phone, stage: c.stage, stageLabel: STAGE_INFO[c.stage] || c.stage, coachingName: getCoaching(c.coachingId)?.name || '', createdAt: c.createdAt }
+        : { jid, name: jid },
+      payments: ps.map(row),
+      messages: customers.chatHistory(jid).map(chatView),
+    };
+  }));
+
+  app.get('/api/chat-media/:id', async (req, res) => {
+    const m = db.get('chat', req.params.id);
+    if (!m?.fileId) return res.status(404).send('Keine Datei');
+    try {
+      const f = await getScreenshot(m.fileId);
+      res.setHeader('Content-Type', f.mimeType || m.mimeType || 'image/jpeg');
+      res.setHeader('Cache-Control', 'private, max-age=3600');
+      res.send(f.buffer);
+    } catch (err) {
+      res.status(502).send(`Datei konnte nicht geladen werden: ${err.message}`);
+    }
+  });
+
+  // ---- Admin alerts ----
+  app.post('/api/alerts/test', wrap(() => require('./alerts').sendTest()));
 
   // Test a receipt without creating a payment or messaging anyone.
   app.post('/api/test-receipt', wrap(async (req) => {

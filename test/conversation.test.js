@@ -255,3 +255,69 @@ test('verified customer: same link again, change request offers another coaching
   assert.match((await h.say(h.textMsg(jid, 'Money bitte')))[0], /^Das Money Coaching kostet 80 €/);
   assert.strictEqual(h.customers.get(jid).stage, 'awaiting_screenshot');
 });
+
+test('admin alerts: review and auto-verified payments are reported to the admin number', async () => {
+  const queue = [goodReceipt(70), goodReceipt(80)];
+  const h = await createHarness({ receipts: { next: () => queue.shift() } });
+  require('../src/config').getCoaching('C2').groupLink = 'https://chat.whatsapp.com/TEST-MONEY';
+  const settings = require('../src/settings');
+  assert.deepStrictEqual(settings.set('adminNumbers', '+49 170 999 8888, 0092 300 1112223'), ['491709998888', '923001112223']);
+  assert.throws(() => settings.set('adminNumbers', '0170 123'), /Ländervorwahl/);
+  const tick = () => new Promise((r) => setTimeout(r, 20));
+  const admin = (s) => s.jid === '491709998888@s.whatsapp.net';
+
+  const jid = h.phoneJid(30);
+  await h.say(h.textMsg(jid, 'Money'));
+  await h.say(h.imageMsg(jid, await img(30)));
+  await tick();
+  const reviewAlert = h.sent.filter(admin).map((s) => s.text);
+  assert.strictEqual(reviewAlert.length, 1);
+  assert.match(reviewAlert[0], /^⚠️ Neue Zahlung zur Prüfung\nKunde: Max Muster – \+491700000030\nCoaching: Money Coaching \(80 €\)\nBetrag laut Beleg: 70 €\nZahlung: Z-\d+\nGründe: Falscher Betrag/);
+  assert.strictEqual(h.sent.filter((s) => s.jid === '923001112223@s.whatsapp.net').length, 1, 'all admin numbers get it');
+
+  const jid2 = h.phoneJid(31);
+  await h.say(h.textMsg(jid2, 'Money'));
+  await h.say(h.imageMsg(jid2, await img(31)));
+  await tick();
+  const all = h.sent.filter(admin).map((s) => s.text);
+  assert.match(all[1], /^✅ Zahlung bestätigt – Gruppenlink gesendet\nKunde: Max Muster – \+491700000031\nCoaching: Money Coaching \(80 €\)/);
+
+  settings.set('alertOnVerified', false);
+  const jid3 = h.phoneJid(32);
+  queue.push(goodReceipt(80, { reference: 'other' }));
+  await h.say(h.textMsg(jid3, 'Money'));
+  await h.say(h.imageMsg(jid3, await img(32)));
+  await tick();
+  assert.strictEqual(h.sent.filter(admin).length, 2, 'verified alerts can be switched off');
+});
+
+test('messages from an admin number are not treated as a customer', async () => {
+  const h = await createHarness();
+  require('../src/settings').set('adminNumbers', ['491709998888']);
+  assert.deepStrictEqual(await h.say(h.textMsg('491709998888@s.whatsapp.net', 'ok danke')), []);
+  assert.strictEqual(h.customers.all().length, 0);
+});
+
+test('images sent outside the payment step are saved for the dashboard chat', async () => {
+  const h = await createHarness();
+  const jid = h.phoneJid(33);
+  await h.say(h.imageMsg(jid, await img(33), { caption: 'Hallo' }));
+  await new Promise((r) => setTimeout(r, 50));
+  const [entry] = h.customers.chatHistory(jid);
+  assert.strictEqual(entry.text, '[Bild] Hallo');
+  assert.ok(entry.fileId, 'file stored');
+  const file = await h.backend.getFile(entry.fileId);
+  assert.ok(file.buffer.length > 0);
+});
+
+test('receipt chat entries link to the screenshot and the payment', async () => {
+  const queue = [goodReceipt(75)];
+  const h = await createHarness({ receipts: { next: () => queue.shift() } });
+  const jid = h.phoneJid(34);
+  await h.say(h.textMsg(jid, 'Sport'));
+  await h.say(h.imageMsg(jid, await img(34)));
+  const entry = h.customers.chatHistory(jid).find((m) => m.text.startsWith('[Bild]'));
+  const [p] = h.payments.all();
+  assert.strictEqual(entry.paymentId, p.id);
+  assert.strictEqual(entry.fileId, p.screenshotFileId);
+});

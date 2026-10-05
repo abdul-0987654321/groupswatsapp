@@ -65,6 +65,17 @@
     'SHEET_WEBHOOK_URL ist nicht gesetzt – Daten werden nur im Arbeitsspeicher gehalten und gehen beim Neustart verloren.':
       'SHEET_WEBHOOK_URL is not set – data is only kept in memory and is lost on restart.',
     'Bot-Sprache': 'Bot language', 'Gespeichert ✓': 'Saved ✓',
+    'Chats': 'Chats', 'Wähle links einen Chat aus.': 'Select a chat on the left.', 'Keine Chats.': 'No chats.', 'Keine Datei': 'No file',
+    '📄 PDF öffnen': '📄 Open PDF', 'Bild': 'Image',
+    'neu': 'new', 'wählt Coaching': 'choosing coaching', 'wartet auf Beleg': 'waiting for receipt', 'freigeschaltet': 'unlocked',
+    'Admin-Benachrichtigungen': 'Admin alerts',
+    'Der Bot schreibt diesen Nummern auf WhatsApp, wenn etwas passiert. Mehrere Nummern mit Komma trennen. Tipp: vorher einmal vom Admin-Handy an den Bot schreiben. Nachrichten von Admin-Nummern werden nicht als Kunde behandelt.':
+      'The bot messages these numbers on WhatsApp when something happens. Separate several numbers with commas. Tip: write to the bot once from the admin phone first. Messages from admin numbers are not treated as customers.',
+    'z. B. 49 170 1234567, 92 300 1234567': 'e.g. 49 170 1234567, 92 300 1234567',
+    'Beleg muss geprüft werden (Offene Prüfung)': 'Receipt needs review (open review)',
+    'Zahlung automatisch bestätigt – Link gesendet': 'Payment confirmed automatically – link sent',
+    'Speichern': 'Save', 'Testnachricht senden': 'Send test message', 'Wird gesendet…': 'Sending…',
+    'Keine Admin-Nummer eingetragen.': 'No admin number set.', 'WhatsApp ist nicht verbunden.': 'WhatsApp is not connected.',
     'Sprache, in der der Bot den Kunden auf WhatsApp antwortet. Gilt sofort für alle neuen Nachrichten.':
       'Language the bot uses to reply to customers on WhatsApp. Applies immediately to all new messages.',
     // receipt test page
@@ -111,6 +122,9 @@
     [/^Speichern im Google Sheet fehlgeschlagen: (.+)$/, 'Saving to Google Sheet failed: $1'],
     [/^Google Sheet verbunden · zuletzt gespeichert (.+)$/, 'Google Sheet connected · last saved $1'],
     [/^(\d+) von (\d+)$/, '$1 of $2'],
+    [/^Beleg (Z-\d+) öffnen$/, 'Open receipt $1'],
+    [/^Gesendet an (.+) ✓$/, 'Sent to $1 ✓'],
+    [/^Ungültige Admin-Nummer: (\S+) \(bitte mit Ländervorwahl, z\. B\. 49 170 1234567\)$/, 'Invalid admin number: $1 (please with country code, e.g. 49 170 1234567)'],
     [/^(\d+) offen$/, '$1 open'],
     [/^\(soll (.+)\)$/, '(expected $1)'],
     [/^Bitte (.+) wählen$/, 'Please choose a $1'],

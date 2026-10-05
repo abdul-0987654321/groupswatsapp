@@ -20,6 +20,28 @@ function statusPill(status) {
   return `<span class="pill ${color}"><span class="dot ${color}"></span>${esc(label)}</span>`;
 }
 
+/** WhatsApp-style chat bubbles; images/PDFs are shown inline (click opens full size). */
+function renderChat(messages) {
+  if (!messages.length) return '<span class="muted">Kein Verlauf.</span>';
+  let lastDay = '';
+  return messages.map((m) => {
+    const day = new Date(m.at).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+    const sep = day !== lastDay ? `<div class="day">${esc(day)}</div>` : '';
+    lastDay = day;
+    const url = `/api/chat-media/${encodeURIComponent(m.id)}`;
+    let media = '';
+    if (m.hasFile) {
+      media = m.mimeType === 'application/pdf'
+        ? `<a class="file" href="${url}" target="_blank">📄 PDF öffnen</a>`
+        : `<a href="${url}" target="_blank"><img class="chat-img" src="${url}" alt="Bild" loading="lazy"></a>`;
+    }
+    const caption = m.hasFile ? m.text.replace(/^\[(Bild|PDF)\]\s*/, '') : m.text;
+    const pay = m.paymentId ? `<a href="#" class="paylink" data-open="${esc(m.paymentId)}">Beleg ${esc(m.paymentId)} öffnen</a>` : '';
+    const time = new Date(m.at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    return `${sep}<div class="msg ${m.direction === 'out' ? 'out' : 'in'}">${media}${caption ? `<div>${esc(caption)}</div>` : ''}${pay}<span class="time">${time}</span></div>`;
+  }).join('');
+}
+
 /** Payment table with live search. rows: from the API; opts.showCoaching adds a column. */
 function renderPaymentTable(container, rows, { showCoaching = false, onChange } = {}) {
   container.innerHTML = `
@@ -103,10 +125,10 @@ async function openPayment(id, onChange) {
       </div>
     </div>
     <div class="card"><h2>Chatverlauf</h2><div class="chat">
-      ${d.chat.map((m) => `<div class="msg ${m.direction === 'out' ? 'out' : 'in'}">${esc(m.text)}<span class="time">${dateTime(m.at)}</span></div>`).join('') || '<span class="muted">Kein Verlauf.</span>'}
+      ${renderChat(d.chat)}
     </div></div>`;
   const chat = bg.querySelector('.chat'); chat.scrollTop = chat.scrollHeight;
-  bg.querySelectorAll('[data-open]').forEach((a) => a.addEventListener('click', (ev) => { ev.preventDefault(); close(); openPayment(a.dataset.open, onChange); }));
+  bg.querySelectorAll('[data-open]').forEach((a) => a.addEventListener('click', (ev) => { ev.preventDefault(); if (a.dataset.open === p.id) return; close(); openPayment(a.dataset.open, onChange); }));
   bg.querySelectorAll('[data-act]').forEach((btn) => btn.addEventListener('click', async () => {
     const act = btn.dataset.act;
     const question = { approve: 'Zahlung bestätigen? Der Kunde bekommt automatisch den Gruppenlink.', reject: 'Zahlung ablehnen? Der Kunde wird gebeten, einen gültigen Beleg zu schicken.', 'resend-link': 'Gruppenlink erneut an den Kunden senden?' }[act];

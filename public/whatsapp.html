@@ -46,6 +46,22 @@
     </div>
   </div>
   <div class="card">
+    <h2>Admin-Benachrichtigungen</h2>
+    <p class="muted" style="margin-top:0">Der Bot schreibt diesen Nummern auf WhatsApp, wenn etwas passiert. Mehrere Nummern mit Komma trennen. Tipp: vorher einmal vom Admin-Handy an den Bot schreiben. Nachrichten von Admin-Nummern werden nicht als Kunde behandelt.</p>
+    <div class="row">
+      <input type="text" id="adminNumbers" inputmode="tel" placeholder="z. B. 49 170 1234567, 92 300 1234567" style="max-width:420px">
+    </div>
+    <div style="margin:10px 0">
+      <label><input type="checkbox" id="alertOnReview"> Beleg muss geprüft werden (Offene Prüfung)</label><br>
+      <label><input type="checkbox" id="alertOnVerified"> Zahlung automatisch bestätigt – Link gesendet</label>
+    </div>
+    <div class="row">
+      <button class="primary" id="saveAlerts">Speichern</button>
+      <button id="testAlert">Testnachricht senden</button>
+      <span id="alertMsg" class="muted"></span>
+    </div>
+  </div>
+  <div class="card">
     <div class="row">
       <button id="connect">Verbinden</button>
       <button id="relink" class="danger">Abmelden &amp; neu verknüpfen</button>
@@ -110,7 +126,11 @@ document.getElementById('relink').onclick = async () => {
   await fetch('/api/whatsapp/relink', { method: 'POST' }); refresh();
 };
 fetch('/api/settings').then((r) => r.json()).then((d) => {
-  const cur = d.settings?.botLanguage || 'de';
+  const st = d.settings || {};
+  document.getElementById('adminNumbers').value = (st.adminNumbers || []).map((n) => '+' + n).join(', ');
+  document.getElementById('alertOnReview').checked = st.alertOnReview !== false;
+  document.getElementById('alertOnVerified').checked = st.alertOnVerified !== false;
+  const cur = st.botLanguage || 'de';
   document.querySelectorAll('input[name=botLang]').forEach((el) => {
     el.checked = el.value === cur;
     el.onchange = async () => {
@@ -120,6 +140,30 @@ fetch('/api/settings').then((r) => r.json()).then((d) => {
     };
   });
 });
+async function postJson(url, body) {
+  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+  const j = await res.json();
+  if (!j.ok) throw new Error(j.error || 'Fehler');
+  return j;
+}
+document.getElementById('saveAlerts').onclick = async () => {
+  const msg = document.getElementById('alertMsg');
+  try {
+    const j = await postJson('/api/settings', {
+      adminNumbers: document.getElementById('adminNumbers').value,
+      alertOnReview: document.getElementById('alertOnReview').checked,
+      alertOnVerified: document.getElementById('alertOnVerified').checked,
+    });
+    document.getElementById('adminNumbers').value = j.settings.adminNumbers.map((n) => '+' + n).join(', ');
+    msg.textContent = 'Gespeichert ✓';
+  } catch (e) { msg.textContent = e.message; }
+};
+document.getElementById('testAlert').onclick = async () => {
+  const msg = document.getElementById('alertMsg');
+  msg.textContent = 'Wird gesendet…';
+  try { const j = await postJson('/api/alerts/test'); msg.textContent = 'Gesendet an ' + j.sentTo.join(', ') + ' ✓'; }
+  catch (e) { msg.textContent = e.message; }
+};
 refresh(); setInterval(refresh, 3000);
 </script>
 </body>

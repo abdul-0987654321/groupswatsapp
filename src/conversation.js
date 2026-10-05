@@ -15,6 +15,8 @@ const customers = require('./customers');
 const payments = require('./payments');
 const { getCoaching } = require('./config');
 const { detectCoaching, keywordMatches, isOnlyGreeting, wantsChange } = require('./coaching-detect');
+const alerts = require('./alerts');
+const db = require('./storage/db');
 
 const { STAGES } = customers;
 let bot = null;
@@ -83,7 +85,7 @@ async function startCoaching(customer, coaching) {
   await reply(customer, msgs.price(coaching));
 }
 
-async function handleReceipt(customer, msg, media) {
+async function handleReceipt(customer, msg, media, chatEntry) {
   const coaching = getCoaching(customer.coachingId);
   let buffer;
   try {
@@ -98,22 +100,46 @@ async function handleReceipt(customer, msg, media) {
 
   const receivedAt = new Date(Number(msg.messageTimestamp || Date.now() / 1000) * 1000).toISOString();
   const payment = await payments.processReceipt({ customer, coaching, buffer, mimeType: media.mimeType, receivedAt });
+  if (chatEntry) customers.updateChat(chatEntry, { fileId: payment.screenshotFileId, mimeType: media.mimeType, paymentId: payment.id });
 
   if (payment.status === payments.STATUS.VERIFIED) {
     const { customer: c } = payments.decide(payment.id, payments.STATUS.VERIFIED, 'auto');
     await sendGroupLink(c || customer, payment);
+    alerts.notify('verified', payments.get(payment.id), c || customer);
   } else {
     await reply(customer, msgs.inReview());
+    alerts.notify('review', payment, customer);
   }
+}
+
+/** Images sent outside the payment step are still saved, so the dashboard chat can show them. */
+function storeChatMedia(customer, msg, media, chatEntry) {
+  void (async () => {
+    try {
+      const buffer = await bot.downloadImage(msg);
+      const ext = media.mimeType === 'application/pdf' ? 'pdf' : 'jpg';
+      const fileId = await db.putFile(`chat_${customer.phone || customer.id}_${chatEntry.id}.${ext}`, media.mimeType, buffer);
+      customers.updateChat(chatEntry, { fileId, mimeType: media.mimeType });
+    } catch (err) {
+      log.warn(`Saving chat media from ${customer.jid} failed: ${err.message}`);
+    }
+  })();
 }
 
 async function handleMessage(msg) {
   const m = unwrap(msg.message);
   if (isSilent(m)) return;
+  const { pnJid, replyJid } = customers.identify(msg);
+  if (alerts.isAdmin(pnJid || replyJid)) {
+    log.info(`Message from admin number ${pnJid || replyJid} ignored (admins get alerts, not the customer flow).`);
+    return;
+  }
   const customer = customers.getOrCreate(msg);
   const media = getMedia(m);
   const text = getText(m);
-  customers.logChat(customer, 'in', media ? `[${media.label}]${text ? ' ' + text : ''}` : text || '[Nachricht ohne Text]');
+  const chatEntry = customers.logChat(customer, 'in', media ? `[${media.label}]${text ? ' ' + text : ''}` : text || '[Nachricht ohne Text]', media ? { mimeType: media.mimeType } : {});
+  const isReceiptStep = customer.stage === STAGES.AWAITING_SCREENSHOT || customer.stage === STAGES.IN_REVIEW;
+  if (media && !isReceiptStep) storeChatMedia(customer, msg, media, chatEntry);
 
   switch (customer.stage) {
     case STAGES.VERIFIED: {
@@ -137,11 +163,11 @@ async function handleMessage(msg) {
     }
 
     case STAGES.IN_REVIEW:
-      if (media) return handleReceipt(customer, msg, media);
+      if (media) return handleReceipt(customer, msg, media, chatEntry);
       return reply(customer, msgs.stillInReview());
 
     case STAGES.AWAITING_SCREENSHOT: {
-      if (media) return handleReceipt(customer, msg, media);
+      if (media) return handleReceipt(customer, msg, media, chatEntry);
       const current = getCoaching(customer.coachingId);
       // Clear keyword: switch to that coaching (or repeat the details for the same one).
       const hits = keywordMatches(text);
@@ -238,6 +264,7 @@ async function resendLink(id) {
 
 function attach(b) {
   bot = b;
+  alerts.setBot(b);
   bot.onMessage(enqueue);
 }
 

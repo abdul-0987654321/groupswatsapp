@@ -97,14 +97,20 @@ function displayName(c) {
   return c?.name || c?.pushName || c?.phone || c?.jid || '';
 }
 
-function logChat(c, direction, text) {
+/** extra: { fileId, mimeType, paymentId } for images/PDFs shown in the dashboard chat */
+function logChat(c, direction, text, extra = {}) {
   return db.put('chat', {
     id: Date.now().toString(36) + crypto.randomBytes(3).toString('hex'),
     at: now(),
     jid: c.jid,
     direction, // 'in' | 'out'
     text: String(text || ''),
+    ...extra,
   });
+}
+
+function updateChat(entry, fields) {
+  return db.put('chat', { ...entry, ...fields });
 }
 
 function chatHistory(jid) {
@@ -113,4 +119,4 @@ function chatHistory(jid) {
   return db.all('chat').filter((m) => ids.has(m.jid)).sort((a, b) => a.at.localeCompare(b.at));
 }
 
-module.exports = { STAGES, identify, getOrCreate, save, get, all, displayName, logChat, chatHistory, phoneFromJid };
+module.exports = { STAGES, identify, getOrCreate, save, get, all, displayName, logChat, updateChat, chatHistory, phoneFromJid };
