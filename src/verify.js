@@ -5,6 +5,7 @@
  */
 
 const { BANK, CURRENCY, coachings } = require('./config');
+const { formatMoney, normalizeCurrency } = require('./money');
 const { isNearDuplicate } = require('./image-hash');
 
 const MAX_AGE_DAYS = 7;
@@ -21,19 +22,49 @@ const normName = (s) =>
     .replace(/[^a-z ]+/g, ' ')
     .split(' ').filter(Boolean);
 
-function ibanMatches(printed) {
-  const got = normIban(printed);
-  const want = normIban(BANK.iban);
-  if (!got) return null; // not readable
-  if (got === want) return true;
-  if (got.includes('*')) {
-    // Masked IBAN, e.g. "DE85 **** **** **** 6021 16": visible parts must match at the same positions
-    const [head, ...rest] = got.split(/\*+/);
-    const tail = rest.pop() || '';
-    return head.length + tail.length >= 6 && want.startsWith(head) && want.endsWith(tail);
-  }
-  return false;
+// Masked numbers ("DE85 **** 6021 16", "****4567"): visible parts must match at the same positions
+function maskedMatches(got, want, minVisible) {
+  const [head, ...rest] = got.split(/\*+/);
+  const tail = rest.pop() || '';
+  return head.length + tail.length >= minVisible && want.startsWith(head) && want.endsWith(tail);
 }
+
+// Pakistani numbers may be printed as 0337… or +92 337…
+const normDigits = (s) => {
+  const d = String(s || '').replace(/[•.…]/g, '*').replace(/[^0-9*]/g, '');
+  return /^92\d{10}$/.test(d) ? '0' + d.slice(2) : d;
+};
+
+/** true = matches, false = readable but different, null = nothing readable */
+function accountMatches(printed) {
+  if (BANK.accountType === 'iban') {
+    const got = normIban(printed);
+    const want = normIban(BANK.account);
+    if (!got) return null;
+    if (got === want) return true;
+    return got.includes('*') ? maskedMatches(got, want, 6) : false;
+  }
+  const got = normDigits(printed);
+  const want = normDigits(BANK.account);
+  if (!got.replace(/\*/g, '')) return null;
+  if (got === want) return true;
+  if (got.includes('*')) return maskedMatches(got, want, 4);
+  // e.g. a Pakistani IBAN (PK.. + bank code + account number) contains the account number at the end
+  const [shorter, longer] = got.length < want.length ? [got, want] : [want, got];
+  return shorter.length >= 7 && longer.endsWith(shorter);
+}
+
+/** A complete, unmasked number that could be compared in full. */
+function accountFullyReadable(printed) {
+  if (BANK.accountType === 'iban') {
+    const n = normIban(printed);
+    return n.length >= 20 && !n.includes('*');
+  }
+  const n = normDigits(printed);
+  return !n.includes('*') && n.length >= normDigits(BANK.account).length;
+}
+
+const ibanMatches = accountMatches; // kept for tests / older callers
 
 function nameMatches(printed) {
   const got = normName(printed);
@@ -137,15 +168,14 @@ function verify(extracted, ctx) {
   // 1. Is it a receipt at all?
   add('receipt', 'Zahlungsbeleg erkannt', e.isPaymentReceipt === true, e.isPaymentReceipt ? '' : 'Kein Zahlungsbeleg erkannt');
 
-  // 2. Recipient: IBAN or name must match. A fully readable but different IBAN always fails.
-  const iban = ibanMatches(e.recipientIban);
+  // 2. Recipient: IBAN/account number or name must match. A fully readable but different number always fails.
+  const iban = accountMatches(e.recipientIban);
   const name = nameMatches(e.recipientName);
-  const fullIbanReadable = normIban(e.recipientIban).length >= 20 && !normIban(e.recipientIban).includes('*');
   let recipientOk;
   let recipientDetail = '';
-  if (iban === false && fullIbanReadable) {
+  if (iban === false && accountFullyReadable(e.recipientIban)) {
     recipientOk = false;
-    recipientDetail = `Empfänger-IBAN stimmt nicht (${e.recipientIban})`;
+    recipientDetail = `${BANK.accountType === 'iban' ? 'Empfänger-IBAN' : 'Empfänger-Konto'} stimmt nicht (${e.recipientIban})`;
   } else {
     recipientOk = iban === true || name;
     if (!recipientOk) {
@@ -157,10 +187,10 @@ function verify(extracted, ctx) {
   }
   add('recipient', `Empfänger = ${BANK.recipient}`, recipientOk, recipientDetail);
 
-  // 3. Amount = price of the selected coaching (EUR)
+  // 3. Amount = price of the selected coaching (in the configured currency)
   const price = ctx.coaching?.price;
   const amount = typeof e.amount === 'number' ? e.amount : null;
-  const currencyOk = !e.currency || String(e.currency).toUpperCase().replace('€', 'EUR') === CURRENCY;
+  const currencyOk = !e.currency || normalizeCurrency(e.currency) === CURRENCY;
   let amountDetail = '';
   if (amount == null) amountDetail = 'Betrag nicht erkennbar';
   else if (!currencyOk) amountDetail = `Falsche Währung (${e.currency})`;
@@ -227,7 +257,7 @@ function verify(extracted, ctx) {
 }
 
 function fmtEuro(n) {
-  return n == null ? '?' : `${Number(n).toFixed(2).replace('.', ',')} €`;
+  return formatMoney(n, CURRENCY, { decimals: 2 });
 }
 function fmtDate(ymd) {
   const [y, m, d] = ymd.split('-');
@@ -237,4 +267,4 @@ function fmtDateTime(iso) {
   return iso ? new Date(iso).toLocaleString('de-DE', { timeZone: TZ, dateStyle: 'short', timeStyle: 'short' }) : '?';
 }
 
-module.exports = { verify, resolveDate, ibanMatches, nameMatches, senderFromReference, berlinDate, MAX_AGE_DAYS };
+module.exports = { verify, resolveDate, ibanMatches, accountMatches, nameMatches, senderFromReference, berlinDate, MAX_AGE_DAYS };

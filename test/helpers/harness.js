@@ -11,6 +11,8 @@ function freshModules() {
 async function createHarness({ classify = () => 'UNKNOWN', receipts = {} } = {}) {
   process.env.TYPING_MIN_MS = '0';
   process.env.TYPING_MAX_MS = '0';
+  process.env.READ_MIN_MS = '0';
+  process.env.READ_MAX_MS = '0';
   freshModules();
   const db = require('../../src/storage/db');
   const { createMemoryBackend } = require('../../src/storage/backend-memory');

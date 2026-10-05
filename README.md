@@ -26,7 +26,20 @@ You can add or remove coachings. The key (`C1`, `MAIN`, …) is the internal cod
 
 **How to apply a change:** edit the file on GitHub (pencil icon → "Commit changes"). Render redeploys automatically in about 2–3 minutes. WhatsApp reconnects from the stored session, so no new QR code is needed, and conversations in progress are kept.
 
-The bank details (Ilyas Lang, IBAN, BIC) are fixed in `src/config.js` and are never written by the AI.
+The bank details are in `config/payment.json` and are never written by the AI.
+
+## Test mode vs. live mode
+`config/payment.json` holds two payment profiles:
+
+- **`live`**: the client's account (Ilyas Lang, IBAN, EUR) with the prices from `coachings.json`.
+- **`test`**: your own test account (for example a Pakistani bank or wallet number, PKR) with tiny test prices (`"prices": { "C1": 1, "C2": 2, "C3": 3, "MAIN": 4 }`).
+
+Set `"mode": "test"` or `"mode": "live"` and commit; Render redeploys by itself. In test mode the dashboard shows a red **TESTMODUS** banner. For test accounts, `accountType: "account"` makes the bot show "Kontonummer / Account number + Bank" instead of "IBAN". Number formats like `0300…`, `+92 300…`, masked `****4567`, or an IBAN that ends in the account number all count as a match.
+
+**Going live:**
+1. Set `"mode": "live"` and commit.
+2. In the Google Sheet, delete the data rows (keep the header row) in the tabs `customers`, `payments` and `chat`. **Do not touch `session`**, or WhatsApp is logged out.
+3. Restart the service on Render (Manual Deploy).
 
 ## Setup (once)
 
@@ -86,7 +99,7 @@ If every check passes, the payment is **VERIFIED** and the link is sent automati
 ## WhatsApp safety rules (built in)
 - Plain text only: no buttons or lists.
 - The bot only replies to private messages and ignores groups, status and broadcasts. It never writes first.
-- It shows "typing…" for a random 2–5 seconds before every reply.
+- Incoming messages are marked "seen" after about 1 second, then "typing…" shows for 2–3 seconds before every reply (configurable: `READ_MIN_MS`, `READ_MAX_MS`, `TYPING_MIN_MS`, `TYPING_MAX_MS`).
 - The group link is sent only after the payment is verified. Customers never see a list of all coachings.
 
 ## Development

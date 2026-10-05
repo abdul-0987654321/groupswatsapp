@@ -31,19 +31,20 @@ const SCHEMA = {
   },
 };
 
-const PROMPT = `Du liest einen Überweisungsbeleg (Screenshot einer Banking-App, Online-Banking-Seite oder PDF-Auftragsbestätigung) aus Deutschland/Europa. Mögliche Banken: Sparkasse, Volksbank, ING, Revolut, MLP, N26, DKB, Commerzbank, Deutsche Bank, PayPal u. a. Sprache Deutsch oder Englisch, heller oder dunkler Modus.
+const PROMPT = `Du liest einen Überweisungsbeleg (Screenshot einer Banking-App, Online-Banking-Seite oder PDF-Auftragsbestätigung). Mögliche Banken/Apps: Sparkasse, Volksbank, ING, Revolut, MLP, N26, DKB, Commerzbank, Deutsche Bank, PayPal sowie pakistanische Apps wie Easypaisa, JazzCash, NayaPay, SadaPay, Meezan, HBL, UBL u. a. Sprache Deutsch, Englisch oder Urdu, heller oder dunkler Modus.
 
 Gib NUR die Felder des JSON-Schemas zurück. Regeln:
 - isPaymentReceipt: true nur, wenn das Bild eine ausgeführte oder beauftragte Überweisung/Zahlung zeigt (z. B. "Überweisung", "Auftragsbestätigung", "erfolgreich", "Transaction details", "The transfer was completed", Umsatzdetails). Sonst false (z. B. Selfie, Chat, Werbung, leere Überweisungsmaske).
 - recipientName: der EMPFÄNGER des Geldes (Felder wie "Empfänger", "Zahlungsbeteiligter", "Name" bei einer Abbuchung, Überschrift oben bei Revolut). NICHT der Auftraggeber/Kontoinhaber.
-- recipientIban: IBAN des Empfängers genau wie gedruckt (Leerzeichen egal). Nicht die IBAN des Auftraggebers/Kontoinhabers.
-- amount: Betrag als positive Zahl (z. B. "-90 €" → 90, "5,00 EUR" → 5).
-- currency: ISO-Code, z. B. "EUR".
+- recipientIban: IBAN, Kontonummer, Wallet- oder Handynummer des EMPFÄNGERS genau wie gedruckt (z. B. "DE85 5505 …", "PK36 SCBL …", "0337 1456781", "****6781"). Nicht die Nummer des Auftraggebers/Kontoinhabers.
+- amount: Betrag als positive Zahl (z. B. "-90 €" → 90, "5,00 EUR" → 5, "Rs. 1.00" → 1). Gebühren nicht mitzählen.
+- currency: ISO-Code, z. B. "EUR"; "Rs"/"Rupees" → "PKR".
 - date: Ausführungs-/Buchungsdatum. Wenn ein absolutes Datum sichtbar ist, im Format YYYY-MM-DD. Wenn nur ein relatives Datum sichtbar ist, gib das Wort genau wie gedruckt zurück (z. B. "Heute", "Today", "Gestern", "A few minutes ago"). Nicht das Datum aus dem Verwendungszweck verwenden, wenn ein anderes Buchungsdatum sichtbar ist. Ansonsten null.
 - time: Uhrzeit HH:MM, falls sichtbar, sonst null.
 - senderName: der AUFTRAGGEBER/Absender (z. B. "Auftraggeber", "Kontoinhaber"), falls sichtbar, sonst null.
 - reference: Verwendungszweck/Reason/Reference genau wie gedruckt, sonst null.
-- bankApp: Name der Bank oder App, die den Beleg erzeugt hat (z. B. "Sparkasse", "Volksbank", "Revolut", "MLP", "ING"), sonst null.
+- reference: bei pakistanischen Apps auch "Purpose"/"Description"/"Message", falls vorhanden. Eine Transaktions-ID (TID, Transaction ID) NICHT als reference, sondern in reference nur, wenn kein Verwendungszweck existiert – dann im Format "TID <nummer>".
+- bankApp: Name der Bank oder App, die den Beleg erzeugt hat (z. B. "Sparkasse", "Volksbank", "Revolut", "MLP", "ING", "Easypaisa", "JazzCash"), sonst null.
 - Erfinde nichts. Unleserliche oder fehlende Felder → null.`;
 
 async function toModelInput(buffer, mimeType) {

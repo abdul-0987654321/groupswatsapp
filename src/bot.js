@@ -7,7 +7,8 @@
  *  - only private chats are handled (groups, status, broadcasts, newsletters ignored)
  *  - the bot never starts a conversation; send() is only called in reply to a customer
  *    or after an admin decision on that customer's own payment
- *  - plain text only, with a random 2–5 s "typing…" delay before every message
+ *  - plain text only; incoming messages are marked "seen" after ~1 s and every reply
+ *    is preceded by ~2–3 s of "typing…"
  */
 
 const {
@@ -44,8 +45,12 @@ function onMessage(fn) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// Human-like timing: message is marked "seen" after ~1 s, then "typing…" for ~2–3 s, then the reply.
+const READ_MIN_MS = Number(process.env.READ_MIN_MS ?? 800);
+const READ_MAX_MS = Number(process.env.READ_MAX_MS ?? 1400);
 const TYPING_MIN_MS = Number(process.env.TYPING_MIN_MS ?? 2000);
-const TYPING_MAX_MS = Number(process.env.TYPING_MAX_MS ?? 5000);
+const TYPING_MAX_MS = Number(process.env.TYPING_MAX_MS ?? 3000);
+const readDelay = () => READ_MIN_MS + Math.floor(Math.random() * (READ_MAX_MS - READ_MIN_MS + 1));
 const CONNECT_WATCHDOG_MS = 60000;
 const typingDelay = () => TYPING_MIN_MS + Math.floor(Math.random() * (TYPING_MAX_MS - TYPING_MIN_MS + 1));
 
@@ -66,7 +71,7 @@ function getStatus() {
   };
 }
 
-/** Sends a plain text message after showing "typing…" for 2–5 seconds. */
+/** Sends a plain text message after showing "typing…" for ~2–3 seconds. */
 async function sendText(jid, text) {
   const sock = runtime.sock;
   if (!sock || !isConnected()) throw new Error('WhatsApp ist nicht verbunden');
@@ -219,6 +224,7 @@ async function start() {
         const jid = msg.key?.remoteJid;
         if (!msg.message || msg.key.fromMe || !isPrivateChat(jid)) continue;
         void (async () => {
+          await sleep(readDelay());
           await markRead(msg);
           try {
             await messageHandler(msg);

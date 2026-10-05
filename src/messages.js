@@ -5,19 +5,25 @@
  * code from config — AI never writes any of these.
  */
 
-const { BANK } = require('./config');
+const { BANK, CURRENCY } = require('./config');
 const settings = require('./settings');
+const { formatMoney } = require('./money');
 
-const euro = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace('.', ','));
+const price = (c) => formatMoney(c.price, CURRENCY);
+// Account line: IBAN for the live account, account number (+ bank) for e.g. a Pakistani test account
+const accountLines = (lang) =>
+  BANK.accountType === 'iban'
+    ? `IBAN: ${BANK.account}\n`
+    : `${lang === 'de' ? 'Kontonummer' : 'Account number'}: ${BANK.account}\n` + (BANK.bankName ? `Bank: ${BANK.bankName}\n` : '');
 
 const TEXTS = {
   de: {
     welcome: () => 'Willkommen! Für welches Coaching interessierst du dich?',
     askCoaching: () => 'Für welches Coaching interessierst du dich?',
     price: (c) =>
-      `Das ${c.name} kostet ${euro(c.price)} €. Bitte überweise an:\n` +
+      `Das ${c.name} kostet ${price(c)}. Bitte überweise an:\n` +
       `Empfänger: ${BANK.recipient}\n` +
-      `IBAN: ${BANK.iban}\n` +
+      accountLines('de') +
       `Verwendungszweck: Dein Name + ${c.name}\n` +
       `Schick mir danach einen Screenshot deiner Überweisung.`,
     remindScreenshot: () =>
@@ -34,9 +40,9 @@ const TEXTS = {
     welcome: () => 'Welcome! Which coaching are you interested in?',
     askCoaching: () => 'Which coaching are you interested in?',
     price: (c) =>
-      `The ${c.name} costs ${euro(c.price)} €. Please transfer to:\n` +
+      `The ${c.name} costs ${price(c)}. Please transfer to:\n` +
       `Recipient: ${BANK.recipient}\n` +
-      `IBAN: ${BANK.iban}\n` +
+      accountLines('en') +
       `Reference: Your name + ${c.name}\n` +
       `Then send me a screenshot of your transfer.`,
     remindScreenshot: () => 'Please send me a screenshot of your transfer (as an image or PDF) so I can check the payment.',

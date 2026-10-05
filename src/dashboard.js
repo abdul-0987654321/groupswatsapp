@@ -5,7 +5,7 @@
  */
 
 const path = require('path');
-const { coachings, getCoaching } = require('./config');
+const { coachings, getCoaching, CURRENCY, MODE } = require('./config');
 const payments = require('./payments');
 const customers = require('./customers');
 const conversation = require('./conversation');
@@ -53,6 +53,7 @@ function row(p) {
     coachingName: getCoaching(p.coachingId)?.name || p.coachingName || p.coachingId,
     amount: p.amount,
     expectedAmount: p.expectedAmount,
+    currency: p.expectedCurrency || 'EUR',
     paymentDate: p.paymentDate,
     receivedAt: p.receivedAt,
     status: p.status,
@@ -92,7 +93,7 @@ function mount(app) {
 
   const wrap = (fn) => async (req, res) => {
     try {
-      res.json(await fn(req, res));
+      res.json({ currency: CURRENCY, mode: MODE, ...(await fn(req, res)) });
     } catch (err) {
       res.status(400).json({ ok: false, error: err.message });
     }
@@ -126,7 +127,7 @@ function mount(app) {
   app.get('/api/categories/:id/export.csv', (req, res) => {
     const c = getCoaching(req.params.id);
     if (!c) return res.status(404).send('Nicht gefunden');
-    const header = ['Zahlungs-ID', 'Kunden-ID', 'Name', 'Telefon', 'Betrag (EUR)', 'Erwartet (EUR)', 'Zahlungsdatum', 'Eingang', 'Status', 'Gründe', 'Link gesendet'];
+    const header = ['Zahlungs-ID', 'Kunden-ID', 'Name', 'Telefon', `Betrag (${CURRENCY})`, `Erwartet (${CURRENCY})`, 'Zahlungsdatum', 'Eingang', 'Status', 'Gründe', 'Link gesendet'];
     const lines = payments
       .all()
       .filter((p) => p.coachingId === c.id && p.status !== STATUS.SUPERSEDED)

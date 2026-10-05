@@ -1,0 +1,21 @@
+{
+  "mode": "live",
+
+  "live": {
+    "recipient": "Ilyas Lang",
+    "accountType": "iban",
+    "account": "DE85 5505 0120 1200 6021 16",
+    "bic": "MALADE51MNZ",
+    "bankName": "Sparkasse Mainz",
+    "currency": "EUR"
+  },
+
+  "test": {
+    "recipient": "",
+    "accountType": "account",
+    "account": "",
+    "bankName": "",
+    "currency": "PKR",
+    "prices": { "C1": 1, "C2": 2, "C3": 3, "MAIN": 4 }
+  }
+}

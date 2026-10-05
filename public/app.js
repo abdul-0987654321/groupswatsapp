@@ -7,10 +7,12 @@ async function api(url, opts = {}) {
   if (res.status === 401) { location.href = '/login'; throw new Error('Nicht angemeldet'); }
   const json = await res.json();
   if (!json.ok) throw new Error(json.error || 'Fehler');
+  if (json.currency) CURRENCY = json.currency;
   return json;
 }
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const euro = (n) => (n == null || n === '' ? '–' : Number(n).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }));
+let CURRENCY = 'EUR'; // set from every API response (EUR live, e.g. PKR in test mode)
+const euro = (n, cur) => (n == null || n === '' ? '–' : Number(n).toLocaleString('de-DE', { style: 'currency', currency: cur || CURRENCY }));
 const dateDE = (ymd) => (ymd ? ymd.split('-').reverse().join('.') : '–');
 const dateTime = (iso) => (iso ? new Date(iso).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '–');
 function statusPill(status) {
@@ -40,7 +42,7 @@ function renderPaymentTable(container, rows, { showCoaching = false, onChange } 
         <td>${esc(r.customerId)}<div class="muted" style="font-size:12px">${esc(r.id)}</div></td>
         <td>${esc(r.name)}</td><td>${esc(r.phone)}</td>
         ${showCoaching ? `<td>${esc(r.coachingName)}</td>` : ''}
-        <td>${euro(r.amount)}${r.amount != null && r.amount !== r.expectedAmount ? ` <span class="muted">(soll ${euro(r.expectedAmount)})</span>` : ''}</td>
+        <td>${euro(r.amount, r.currency)}${r.amount != null && r.amount !== r.expectedAmount ? ` <span class="muted">(soll ${euro(r.expectedAmount, r.currency)})</span>` : ''}</td>
         <td>${dateDE(r.paymentDate)}</td>
         <td>${statusPill(r.status)}${r.status === 'NEEDS_REVIEW' && r.reasons.length ? `<div class="muted" style="font-size:12px;white-space:normal;max-width:280px">${esc(r.reasons.join(' · '))}</div>` : ''}</td>
       </tr>`).join('') : `<tr><td colspan="7" class="muted">Keine Einträge.</td></tr>`;
@@ -89,7 +91,7 @@ async function openPayment(id, onChange) {
         <div class="card"><h2>Erkannte Daten</h2><dl class="kv">
           ${kv('Zahlungsbeleg', e.isPaymentReceipt === undefined ? null : e.isPaymentReceipt ? 'ja' : 'nein')}
           ${kv('Empfänger', e.recipientName)}${kv('Empfänger-IBAN', e.recipientIban)}
-          ${kv('Betrag', e.amount == null ? null : `${e.amount} ${e.currency || ''}`)}${kv('Erwartet', euro(p.expectedAmount))}
+          ${kv('Betrag', e.amount == null ? null : `${e.amount} ${e.currency || ''}`)}${kv('Erwartet', euro(p.expectedAmount, p.currency))}
           ${kv('Datum (Beleg)', [e.date, e.time].filter(Boolean).join(' '))}${kv('Zahlungsdatum', dateDE(p.paymentDate))}
           ${kv('Absender', p.name)}${kv('Verwendungszweck', e.reference)}${kv('Bank / App', e.bankApp)}
           ${kv('WhatsApp-Name', d.customer?.pushName)}${kv('Gruppenlink gesendet', p.linkSent ? 'ja' : 'nein')}
@@ -97,7 +99,7 @@ async function openPayment(id, onChange) {
         <div class="card"><h2>Prüfungen</h2><ul class="checks">
           ${(p.checks || []).map((c) => `<li class="${c.ok ? 'ok' : 'fail'}">${c.ok ? '✓' : '✗'} ${esc(c.label)}${c.detail ? ` – <span>${esc(c.detail)}</span>` : ''}</li>`).join('') || '<li class="muted">Keine automatischen Prüfungen.</li>'}
         </ul></div>
-        ${d.otherPayments.length ? `<div class="card"><h2>Weitere Belege dieses Kunden</h2>${d.otherPayments.map((o) => `<div class="row"><a href="#" data-open="${esc(o.id)}">${esc(o.id)}</a> ${esc(o.coachingName)} ${euro(o.amount)} ${statusPill(o.status)}</div>`).join('')}</div>` : ''}
+        ${d.otherPayments.length ? `<div class="card"><h2>Weitere Belege dieses Kunden</h2>${d.otherPayments.map((o) => `<div class="row"><a href="#" data-open="${esc(o.id)}">${esc(o.id)}</a> ${esc(o.coachingName)} ${euro(o.amount, o.currency)} ${statusPill(o.status)}</div>`).join('')}</div>` : ''}
       </div>
     </div>
     <div class="card"><h2>Chatverlauf</h2><div class="chat">
@@ -111,7 +113,7 @@ async function openPayment(id, onChange) {
     if (!confirm(question)) return;
     bg.querySelectorAll('[data-act]').forEach((b) => (b.disabled = true));
     const msg = bg.querySelector('#actMsg');
-    msg.textContent = 'Wird ausgeführt… (Tippen-Anzeige 2–5 Sek.)';
+    msg.textContent = 'Wird ausgeführt… (Tippen-Anzeige 2–3 Sek.)';
     try {
       const r = await api(`/api/payments/${encodeURIComponent(p.id)}/${act}`, { method: 'POST', body: '{}' });
       if (r.warning) alert(r.warning);

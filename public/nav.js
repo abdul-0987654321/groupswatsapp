@@ -1,4 +1,5 @@
 // Shared top navigation for all dashboard pages.
+const escNav = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function langSwitch() {
   const cur = window.dashboardLang || 'de';
   return '<span class="lang-switch" role="group" aria-label="Sprache">' +
@@ -23,6 +24,13 @@ function langSwitch() {
     const n = d?.rows?.length || 0;
     const a = document.querySelector('header.top a[href="/pruefungen"]');
     if (n && a) a.insertAdjacentHTML('beforeend', ` <span class="badge">${n}</span>`);
+  }).catch(() => {});
+  // Big red banner while the bot runs in TEST mode (test account + test prices)
+  fetch('/api/settings').then((r) => (r.ok ? r.json() : null)).then((d) => {
+    if (d?.mode !== 'test') return;
+    const a = d.account || {};
+    document.querySelector('header.top').insertAdjacentHTML('afterend',
+      `<div class="testmode">TESTMODUS – Kunden sehen das Testkonto (${escNav(a.recipient)}, ${escNav(a.account)}${a.bankName ? ', ' + escNav(a.bankName) : ''}) und Testpreise in ${escNav(d.currency)}. Vor dem Livegang in config/payment.json "mode": "live" setzen.</div>`);
   }).catch(() => {});
   // Red/green dot showing whether WhatsApp is connected
   fetch('/api/whatsapp').then((r) => (r.ok ? r.json() : null)).then((d) => {

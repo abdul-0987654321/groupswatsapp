@@ -6,7 +6,7 @@
 
 const db = require('./storage/db');
 const log = require('./log');
-const { getCoaching } = require('./config');
+const { getCoaching, CURRENCY, MODE } = require('./config');
 const customers = require('./customers');
 const { readReceipt } = require('./receipt-reader');
 const { verify } = require('./verify');
@@ -90,6 +90,8 @@ async function processReceipt({ customer, coaching, buffer, mimeType, receivedAt
     coachingId: coaching.id,
     coachingName: coaching.name,
     expectedAmount: coaching.price,
+    expectedCurrency: CURRENCY,
+    mode: MODE, // "test" payments come from the test account / test prices
     amount: extracted?.amount ?? null,
     currency: extracted?.currency ?? null,
     paymentDate: result.paymentDate,

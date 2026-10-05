@@ -54,7 +54,10 @@ app.get('/api/whatsapp', (req, res) => {
 app.post('/api/whatsapp/connect', async (req, res) => res.json(await bot.start()));
 app.post('/api/whatsapp/relink', async (req, res) => res.json(await bot.logoutAndRelink()));
 const settings = require('./settings');
-app.get('/api/settings', (req, res) => res.json({ ok: true, settings: settings.all() }));
+const { MODE, BANK, CURRENCY } = require('./config');
+app.get('/api/settings', (req, res) =>
+  res.json({ ok: true, settings: settings.all(), mode: MODE, currency: CURRENCY, account: { recipient: BANK.recipient, account: BANK.account, bankName: BANK.bankName } })
+);
 app.post('/api/settings', (req, res) => {
   try {
     for (const [k, v] of Object.entries(req.body || {})) settings.set(k, v);
