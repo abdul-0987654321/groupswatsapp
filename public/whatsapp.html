@@ -37,6 +37,15 @@
     </div>
   </div>
   <div class="card">
+    <h2>Bot-Sprache</h2>
+    <p class="muted" style="margin-top:0">Sprache, in der der Bot den Kunden auf WhatsApp antwortet. Gilt sofort für alle neuen Nachrichten.</p>
+    <div class="row">
+      <label><input type="radio" name="botLang" value="de"> Deutsch</label>
+      <label><input type="radio" name="botLang" value="en"> English</label>
+      <span id="langSaved" class="muted"></span>
+    </div>
+  </div>
+  <div class="card">
     <div class="row">
       <button id="connect">Verbinden</button>
       <button id="relink" class="danger">Abmelden &amp; neu verknüpfen</button>
@@ -100,6 +109,17 @@ document.getElementById('relink').onclick = async () => {
   if (!confirm('Die aktuelle WhatsApp-Verknüpfung wird getrennt. Danach musst du einen neuen QR-Code scannen. Fortfahren?')) return;
   await fetch('/api/whatsapp/relink', { method: 'POST' }); refresh();
 };
+fetch('/api/settings').then((r) => r.json()).then((d) => {
+  const cur = d.settings?.botLanguage || 'de';
+  document.querySelectorAll('input[name=botLang]').forEach((el) => {
+    el.checked = el.value === cur;
+    el.onchange = async () => {
+      const res = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ botLanguage: el.value }) });
+      const j = await res.json();
+      document.getElementById('langSaved').textContent = j.ok ? 'Gespeichert ✓' : j.error;
+    };
+  });
+});
 refresh(); setInterval(refresh, 3000);
 </script>
 </body>

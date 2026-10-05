@@ -21,6 +21,7 @@ const CHUNK_SEP = '__';
  */
 const TABLES = {
   session: { key: 'key', raw: true },
+  settings: { key: 'key', raw: true }, // dashboard settings, e.g. botLanguage
   customers: {
     key: 'jid',
     view: (c) => ({

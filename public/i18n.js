@@ -64,6 +64,9 @@
       'The current WhatsApp link will be removed. You will then need to scan a new QR code. Continue?',
     'SHEET_WEBHOOK_URL ist nicht gesetzt – Daten werden nur im Arbeitsspeicher gehalten und gehen beim Neustart verloren.':
       'SHEET_WEBHOOK_URL is not set – data is only kept in memory and is lost on restart.',
+    'Bot-Sprache': 'Bot language', 'Gespeichert ✓': 'Saved ✓',
+    'Sprache, in der der Bot den Kunden auf WhatsApp antwortet. Gilt sofort für alle neuen Nachrichten.':
+      'Language the bot uses to reply to customers on WhatsApp. Applies immediately to all new messages.',
     // receipt test page
     'Prüft einen Beleg genau wie der Bot (OpenAI-Auslesung + alle Prüfungen) – es wird': 'Checks a receipt exactly like the bot (OpenAI reading + all checks) – ',
     'nichts gespeichert': 'nothing is saved', 'und': 'and', 'keine Nachricht': 'no message',

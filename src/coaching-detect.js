@@ -15,6 +15,7 @@ const COMPOUND_SUFFIXES = ['coaching', 'coachings', 'kurs', 'gruppe', 'paket', '
 const GREETINGS = new Set([
   'hallo', 'hi', 'hey', 'hello', 'moin', 'servus', 'guten', 'tag', 'morgen', 'abend', 'abends', 'gruss', 'gott',
   'gruezi', 'salam', 'selam', 'na', 'yo', 'info', 'infos', 'frage', 'start', 'ok', 'okay', 'danke', 'bitte',
+  'good', 'morning', 'evening', 'afternoon', 'thanks', 'thank', 'you', 'please', 'question', 'hiya', 'greetings',
 ]);
 
 function normalize(text) {

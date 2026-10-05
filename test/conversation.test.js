@@ -209,3 +209,26 @@ test('admin decisions are refused while WhatsApp is disconnected (customer must 
   await assert.rejects(h.conversation.rejectPayment(p.id), /WhatsApp ist nicht verbunden/);
   assert.strictEqual(h.payments.get(p.id).status, 'NEEDS_REVIEW');
 });
+
+test('bot language switch: English replies, setting stored', async () => {
+  const h = await createHarness();
+  const settings = require('../src/settings');
+  settings.set('botLanguage', 'en');
+  const jid = h.phoneJid(17);
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'Hello')), ['Welcome! Which coaching are you interested in?']);
+  assert.strictEqual(h.aiCalls.classify, 0, 'English greeting must not call the AI');
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'I want the money coaching')), [
+    'The Money Coaching costs 80 €. Please transfer to:\nRecipient: Ilyas Lang\nIBAN: DE85 5505 0120 1200 6021 16\nReference: Your name + Money Coaching\nThen send me a screenshot of your transfer.',
+  ]);
+  assert.strictEqual(h.db.get('settings', 'botLanguage').value, '"en"');
+  assert.throws(() => settings.set('botLanguage', 'fr'), /Ungültiger Wert/);
+  settings.set('botLanguage', 'de');
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'ok')), [
+    'Bitte schick mir einen Screenshot deiner Überweisung (als Bild oder PDF), damit ich die Zahlung prüfen kann.',
+  ]);
+});
+
+test('German and English texts cover the same messages', () => {
+  const { TEXTS } = require('../src/messages');
+  assert.deepStrictEqual(Object.keys(TEXTS.en).sort(), Object.keys(TEXTS.de).sort());
+});

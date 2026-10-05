@@ -53,6 +53,16 @@ app.get('/api/whatsapp', (req, res) => {
 });
 app.post('/api/whatsapp/connect', async (req, res) => res.json(await bot.start()));
 app.post('/api/whatsapp/relink', async (req, res) => res.json(await bot.logoutAndRelink()));
+const settings = require('./settings');
+app.get('/api/settings', (req, res) => res.json({ ok: true, settings: settings.all() }));
+app.post('/api/settings', (req, res) => {
+  try {
+    for (const [k, v] of Object.entries(req.body || {})) settings.set(k, v);
+    res.json({ ok: true, settings: settings.all() });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
 app.post('/api/whatsapp/pairing-code', async (req, res) => {
   try {
     res.json({ ok: true, ...(await bot.requestPairingCode(req.body?.phone)) });
