@@ -185,3 +185,14 @@ test('chat history is recorded both ways', async () => {
   const chat = h.customers.chatHistory(jid);
   assert.deepStrictEqual(chat.map((m) => m.direction), ['in', 'out']);
 });
+
+test('if OpenAI fails, the receipt goes to review (never lost, never rejected)', async () => {
+  const h = await createHarness({ receipts: { next: () => { throw new Error('OpenAI down'); } } });
+  const jid = h.phoneJid(15);
+  await h.say(h.textMsg(jid, 'Sport'));
+  assert.deepStrictEqual(await h.say(h.imageMsg(jid, await img(9))), ['Danke! Deine Zahlung wird kurz geprüft. Du bekommst gleich Bescheid.']);
+  const [p] = h.payments.all();
+  assert.strictEqual(p.status, 'NEEDS_REVIEW');
+  assert.match(p.reasons[0], /^Beleg konnte nicht automatisch gelesen werden/);
+  assert.ok(p.screenshotFileId, 'screenshot still stored');
+});
