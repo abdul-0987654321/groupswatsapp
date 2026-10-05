@@ -14,15 +14,33 @@
   <div class="card">
     <div class="row"><span id="dot" class="dot grey"></span><strong id="statusText">Lade…</strong></div>
     <p id="details" class="muted"></p>
-    <div id="qrBox" class="qr" hidden>
-      <p>Öffne WhatsApp auf dem Bot-Handy → <b>Einstellungen → Verknüpfte Geräte → Gerät hinzufügen</b> und scanne diesen Code:</p>
-      <img id="qr" alt="QR-Code">
+    <p id="storage" class="muted" style="margin:0"></p>
+  </div>
+  <div id="login" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))" hidden>
+    <div class="card qr">
+      <h2>Mit QR-Code</h2>
+      <p>WhatsApp auf dem Bot-Handy → <b>Einstellungen → Verknüpfte Geräte → Gerät hinzufügen</b> → Code scannen:</p>
+      <img id="qr" alt="QR-Code" hidden>
+      <p id="qrWait" class="muted">QR-Code wird geladen…</p>
       <p class="muted">Der Code erneuert sich automatisch.</p>
     </div>
-    <div class="row" style="margin-top:12px">
-      <button id="connect">Verbinden</button>
-      <button id="relink" class="danger">Neu verknüpfen (neuer QR-Code)</button>
+    <div class="card">
+      <h2>Mit Telefonnummer (Kopplungscode)</h2>
+      <p>Nummer des Bot-Handys mit Ländervorwahl:</p>
+      <div class="row"><input type="text" id="phone" inputmode="tel" placeholder="z. B. 49 170 1234567" style="max-width:240px"><button class="primary" id="pairBtn">Code anfordern</button></div>
+      <div id="pairBox" hidden style="margin-top:14px">
+        <div style="font-size:34px;font-weight:700;letter-spacing:4px;font-family:ui-monospace,monospace" id="pairCode"></div>
+        <p>Auf dem Bot-Handy: <b>Einstellungen → Verknüpfte Geräte → Gerät hinzufügen → „Stattdessen mit Telefonnummer verknüpfen“</b> und diesen Code eingeben. Der Code gilt ca. 2 Minuten – sonst neu anfordern.</p>
+      </div>
+      <p id="pairErr" class="banner err" hidden></p>
     </div>
+  </div>
+  <div class="card">
+    <div class="row">
+      <button id="connect">Verbinden</button>
+      <button id="relink" class="danger">Abmelden &amp; neu verknüpfen</button>
+    </div>
+    <p class="muted" style="margin-bottom:0">Die Anmeldung wird im Google Sheet gespeichert. Nach Neustarts oder neuen Deploys verbindet sich der Bot automatisch – ohne neuen QR-Code.</p>
   </div>
 </main>
 <script src="/nav.js"></script>
@@ -45,8 +63,20 @@ async function refresh() {
   if (s.connectedAt) parts.push('verbunden seit ' + new Date(s.connectedAt).toLocaleString('de-DE'));
   if (s.lastDisconnect && s.status !== 'connected') parts.push('letzte Trennung: ' + new Date(s.lastDisconnect.at).toLocaleString('de-DE') + ' (Code ' + esc(s.lastDisconnect.code) + ')');
   document.getElementById('details').innerHTML = parts.join(' · ');
-  document.getElementById('qrBox').hidden = !s.qrDataUrl;
-  if (s.qrDataUrl) document.getElementById('qr').src = s.qrDataUrl;
+  document.getElementById('login').hidden = !(s.status === 'qr' || s.status === 'starting' || s.status === 'reconnecting');
+  const qr = document.getElementById('qr');
+  qr.hidden = !s.qrDataUrl || Boolean(s.pairing);
+  document.getElementById('qrWait').textContent = s.pairing ? 'Kopplungscode aktiv – QR-Code ausgeblendet.' : 'QR-Code wird geladen…';
+  document.getElementById('qrWait').hidden = Boolean(s.qrDataUrl) && !s.pairing;
+  if (s.qrDataUrl && qr.src !== s.qrDataUrl) qr.src = s.qrDataUrl;
+  document.getElementById('pairBox').hidden = !s.pairing;
+  if (s.pairing) document.getElementById('pairCode').textContent = s.pairing.code;
+  const st = s.storage || {};
+  document.getElementById('storage').innerHTML = s.storageError || st.lastFlushError
+    ? '<span class="dot red"></span> Google Sheet: Fehler (siehe oben)'
+    : st.backend === 'google-sheets'
+      ? '<span class="dot green"></span> Google Sheet verbunden' + (st.lastFlushAt ? ' · zuletzt gespeichert ' + new Date(st.lastFlushAt).toLocaleString('de-DE') : '')
+      : '<span class="dot yellow"></span> Kein Google Sheet – Daten nur im Arbeitsspeicher';
   const b = [];
   if (s.storageError) b.push('<div class="banner err">' + esc(s.storageError) + '</div>');
   if (s.storageWarning) b.push('<div class="banner warn">' + esc(s.storageWarning) + '</div>');
@@ -54,6 +84,17 @@ async function refresh() {
   document.getElementById('banners').innerHTML = b.join('');
 }
 document.getElementById('connect').onclick = async () => { await fetch('/api/whatsapp/connect', { method: 'POST' }); refresh(); };
+document.getElementById('pairBtn').onclick = async () => {
+  const err = document.getElementById('pairErr'); err.hidden = true;
+  const btn = document.getElementById('pairBtn'); btn.disabled = true; btn.textContent = 'Wird angefordert…';
+  try {
+    const res = await fetch('/api/whatsapp/pairing-code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: document.getElementById('phone').value }) });
+    const d = await res.json();
+    if (!d.ok) throw new Error(d.error);
+    refresh();
+  } catch (e) { err.textContent = e.message; err.hidden = false; }
+  btn.disabled = false; btn.textContent = 'Code anfordern';
+};
 document.getElementById('relink').onclick = async () => {
   if (!confirm('Die aktuelle WhatsApp-Verknüpfung wird getrennt. Danach musst du einen neuen QR-Code scannen. Fortfahren?')) return;
   await fetch('/api/whatsapp/relink', { method: 'POST' }); refresh();

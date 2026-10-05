@@ -71,12 +71,17 @@ test('Baileys auth state round-trips Buffers through the sheet', async () => {
     const a = auth.useSheetAuthState();
     a.state.creds.me = { id: '4917600000000:1@s.whatsapp.net' };
     await a.saveCreds();
+    assert.ok(!auth.hasSession(), 'me without account = unfinished pairing, not a session');
+    assert.ok(auth.hasUnfinishedPairing());
+    a.state.creds.account = { details: Buffer.from([9]) };
+    await a.saveCreds();
     await a.state.keys.set({ 'pre-key': { 5: { public: Buffer.from([1, 2, 3]), private: Buffer.from([4, 5]) } } });
     await db.flush();
 
     ({ db, auth } = freshDb());
     await db.init(createSheetsBackend({ url: app.url, secret: app.secret }));
     assert.ok(auth.hasSession());
+    assert.ok(!auth.hasUnfinishedPairing());
     const b = auth.useSheetAuthState();
     assert.deepStrictEqual(b.state.creds.noiseKey.private, a.state.creds.noiseKey.private);
     assert.ok(Buffer.isBuffer(b.state.creds.noiseKey.private));
@@ -102,6 +107,25 @@ test('screenshots go to Drive and come back unchanged', async () => {
     const back = await backend.getFile(id);
     assert.deepStrictEqual(back.buffer, img);
     assert.strictEqual(back.mimeType, 'image/jpeg');
+  } finally {
+    await app.close();
+  }
+});
+
+test('reload keeps local changes that are not saved yet', async () => {
+  const app = await startFakeWebApp();
+  try {
+    const { db } = freshDb();
+    await db.init(createSheetsBackend({ url: app.url, secret: app.secret }));
+    db.put('session', { key: 'creds', value: 'old' });
+    await db.flush();
+    // another instance writes a newer value
+    await createSheetsBackend({ url: app.url, secret: app.secret }).write([{ table: 'session', key: 'key', upsert: [{ key: 'creds', value: 'new' }, { key: 'k2', value: 'x' }] }]);
+    db.put('session', { key: 'local', value: 'pending' });
+    await db.reload(['session']);
+    assert.strictEqual(db.get('session', 'creds').value, 'new');
+    assert.strictEqual(db.get('session', 'k2').value, 'x');
+    assert.strictEqual(db.get('session', 'local').value, 'pending');
   } finally {
     await app.close();
   }

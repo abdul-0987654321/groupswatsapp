@@ -53,6 +53,13 @@ app.get('/api/whatsapp', (req, res) => {
 });
 app.post('/api/whatsapp/connect', async (req, res) => res.json(await bot.start()));
 app.post('/api/whatsapp/relink', async (req, res) => res.json(await bot.logoutAndRelink()));
+app.post('/api/whatsapp/pairing-code', async (req, res) => {
+  try {
+    res.json({ ok: true, ...(await bot.requestPairingCode(req.body?.phone)) });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
 
 const page = (file) => (req, res) => res.sendFile(path.join(__dirname, '..', 'public', file));
 app.get('/whatsapp', page('whatsapp.html'));
@@ -85,6 +92,21 @@ async function boot() {
 
   conversation.attach(bot);
   state.ready = true;
+
+  // On a Render deploy the old instance keeps running until this one is healthy, then gets SIGTERM
+  // and saves its last WhatsApp session changes. Wait for that, re-read the session, then connect —
+  // so a deploy never loses the login.
+  const { hasSession } = require('./storage/auth-state');
+  const delay = Number(process.env.WHATSAPP_START_DELAY_MS ?? (process.env.RENDER ? 25000 : 0));
+  if (delay > 0 && hasSession()) {
+    log.info(`Waiting ${delay / 1000}s for the previous instance to hand over the WhatsApp session…`);
+    await new Promise((r) => setTimeout(r, delay));
+    try {
+      await db.reload(['session']);
+    } catch (err) {
+      log.warn(`Re-reading the session failed, using the one loaded at startup: ${err.message}`);
+    }
+  }
   await bot.start();
 }
 

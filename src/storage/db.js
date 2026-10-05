@@ -117,21 +117,26 @@ function fromFlat(table, row) {
 
 async function init(b) {
   backend = b;
-  const data = await backend.load(Object.keys(TABLES));
+  await reload(Object.keys(TABLES));
+}
+
+/** Re-reads tables from the backend (pending local changes for those tables win). */
+async function reload(tables) {
+  const data = await backend.load(tables);
   for (const [table, rows] of Object.entries(data)) {
     cache[table].clear();
     for (const row of rows) {
       try {
         const rec = fromFlat(table, row);
-        if (rec) cache[table].set(String(rec[TABLES[table].key]), rec);
+        const key = rec && String(rec[TABLES[table].key]);
+        if (rec && !queue[table].upsert.has(key) && !queue[table].remove.has(key)) cache[table].set(key, rec);
       } catch (err) {
         log.warn(`Skipping unreadable ${table} row: ${err.message}`);
       }
     }
+    for (const [key, rec] of queue[table].upsert) cache[table].set(key, rec); // not yet saved: keep local version
   }
-  log.info(
-    `Loaded from ${backend.name}: ` + Object.keys(TABLES).map((t) => `${t}=${cache[t].size}`).join(', ')
-  );
+  log.info(`Loaded from ${backend.name}: ` + tables.map((t) => `${t}=${cache[t].size}`).join(', '));
 }
 
 function get(table, key) {
@@ -228,4 +233,4 @@ async function getFile(id) {
   return backend.getFile(id);
 }
 
-module.exports = { TABLES, init, get, all, put, remove, flush, status, putFile, getFile, _toFlat: toFlat, _fromFlat: fromFlat };
+module.exports = { TABLES, init, reload, get, all, put, remove, flush, status, putFile, getFile, _toFlat: toFlat, _fromFlat: fromFlat };

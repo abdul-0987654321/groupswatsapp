@@ -53,8 +53,16 @@ async function clearSession() {
   await db.flush();
 }
 
+/** True only for a completed login (QR or pairing code); `me` alone is also set by an unfinished pairing request. */
 function hasSession() {
-  return Boolean(read('creds')?.me);
+  const creds = read('creds');
+  return Boolean(creds?.me && creds?.account);
 }
 
-module.exports = { useSheetAuthState, clearSession, hasSession };
+/** Creds left over from a pairing request that was never completed would make Baileys try to log in and fail. */
+function hasUnfinishedPairing() {
+  const creds = read('creds');
+  return Boolean(creds?.me && !creds?.account);
+}
+
+module.exports = { useSheetAuthState, clearSession, hasSession, hasUnfinishedPairing };

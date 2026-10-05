@@ -21,7 +21,7 @@ const {
 const QRCode = require('qrcode');
 const pino = require('pino');
 const log = require('./log');
-const { useSheetAuthState, clearSession, hasSession } = require('./storage/auth-state');
+const { useSheetAuthState, clearSession, hasSession, hasUnfinishedPairing } = require('./storage/auth-state');
 
 const baileysLogger = pino({ level: 'silent' });
 
@@ -33,6 +33,7 @@ const runtime = {
   connectedAt: null,
   lastDisconnect: null,
   reconnectAttempts: 0,
+  pairing: null, // { phone, code, at } while a pairing-code login is in progress
   stopping: false,
   starting: false,
 };
@@ -57,6 +58,7 @@ function getStatus() {
     status: runtime.status,
     connected: isConnected(),
     qrDataUrl: runtime.status === 'qr' ? runtime.qrDataUrl : null,
+    pairing: runtime.status === 'qr' ? runtime.pairing : null,
     me: runtime.me,
     connectedAt: runtime.connectedAt,
     lastDisconnect: runtime.lastDisconnect,
@@ -121,6 +123,10 @@ async function start() {
   runtime.status = 'starting';
   try {
     detachSocket();
+    if (hasUnfinishedPairing()) {
+      log.info('Discarding an unfinished pairing-code login.');
+      await clearSession();
+    }
     const { state, saveCreds } = useSheetAuthState();
     let version;
     try {
@@ -167,6 +173,7 @@ async function start() {
       if (connection === 'open') {
         runtime.status = 'connected';
         runtime.qrDataUrl = null;
+        runtime.pairing = null;
         runtime.reconnectAttempts = 0;
         runtime.connectedAt = new Date().toISOString();
         runtime.me = { id: sock.user?.id || null, name: sock.user?.name || sock.user?.verifiedName || null };
@@ -177,6 +184,7 @@ async function start() {
         const message = lastDisconnect?.error?.message || 'unknown';
         runtime.lastDisconnect = { at: new Date().toISOString(), code: code ?? null, message };
         runtime.qrDataUrl = null;
+        runtime.pairing = null;
         runtime.connectedAt = null;
         detachSocket();
         if (runtime.stopping) {
@@ -231,6 +239,30 @@ async function start() {
   }
 }
 
+const sleep2 = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Login with a pairing code instead of the QR code: WhatsApp on the phone →
+ * Verknüpfte Geräte → Gerät hinzufügen → "Stattdessen mit Telefonnummer verknüpfen".
+ * `phone` must include the country code (e.g. 49 170 1234567).
+ */
+async function requestPairingCode(phone) {
+  let digits = String(phone || '').replace(/\D/g, '');
+  if (digits.startsWith('00')) digits = digits.slice(2);
+  if (digits.startsWith('0')) throw new Error('Bitte die Nummer mit Ländervorwahl eingeben, z. B. 49 170 1234567.');
+  if (digits.length < 8 || digits.length > 15) throw new Error('Ungültige Telefonnummer.');
+  if (isConnected()) throw new Error('WhatsApp ist bereits verbunden.');
+  if (runtime.stopping || (!runtime.sock && !runtime.starting)) await start();
+  // The socket accepts a pairing request once WhatsApp offers a login (= the QR stage).
+  for (let i = 0; i < 40 && runtime.status !== 'qr'; i++) await sleep2(500);
+  if (runtime.status !== 'qr' || !runtime.sock) throw new Error('Verbindung zu WhatsApp noch nicht bereit – bitte in ein paar Sekunden erneut versuchen.');
+  const raw = await runtime.sock.requestPairingCode(digits);
+  const code = String(raw).replace(/(.{4})(?=.)/, '$1-');
+  runtime.pairing = { phone: '+' + digits, code, at: new Date().toISOString() };
+  log.info(`Pairing code requested for +${digits}.`);
+  return runtime.pairing;
+}
+
 async function stop() {
   runtime.stopping = true;
   detachSocket();
@@ -252,4 +284,4 @@ async function logoutAndRelink() {
   return start();
 }
 
-module.exports = { start, stop, logoutAndRelink, getStatus, isConnected, onMessage, sendText, downloadImage };
+module.exports = { start, stop, logoutAndRelink, requestPairingCode, getStatus, isConnected, onMessage, sendText, downloadImage };

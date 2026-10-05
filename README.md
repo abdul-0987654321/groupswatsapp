@@ -56,7 +56,11 @@ If you later change `Code.gs`, use **Deploy → Manage deployments → Edit → 
   - `TZ=Europe/Berlin`
 
 ### 3. Connect WhatsApp
-Open `https://<service>.onrender.com`, log in, go to **WhatsApp-Status**, and scan the QR code on the bot phone (WhatsApp → Settings → Linked devices → Link a device). After restarts or deploys, the bot reconnects without a QR code.
+Open `https://<service>.onrender.com`, log in and go to **WhatsApp-Status**. There are two ways to log in:
+- **QR code:** on the bot phone, go to WhatsApp → Settings → Linked devices → Link a device, and scan the code.
+- **Pairing code:** enter the bot's number with country code (e.g. `49 170 1234567`) and click "Code anfordern". On the phone, go to Linked devices → Link a device → "Link with phone number instead", and type in the 8-character code.
+
+The login is stored in the Google Sheet. After restarts or deploys the bot reconnects without a new QR or pairing code. On a deploy, the new instance waits about 25 s for the old one to save its last session changes, then re-reads the session before connecting.
 
 ### 4. UptimeRobot (keeps the free service awake)
 Add a new monitor:
