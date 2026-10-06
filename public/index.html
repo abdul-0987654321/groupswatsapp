@@ -11,19 +11,50 @@
 <div id="nav"></div>
 <main>
   <h1>Übersicht</h1>
+  <p class="lead">Hier siehst du auf einen Blick, wie viele Kunden bezahlt haben und was noch zu tun ist.</p>
+  <div id="todo"></div>
   <div id="err"></div>
   <div class="grid" id="kpis"></div>
-  <h2 style="margin-top:8px" id="tilesTitle">Coachings</h2>
-  <div class="grid tiles" id="tiles" style="margin-bottom:16px"></div>
-  <div class="card">
+
+  <div class="section-title"><h2 id="tilesTitle">Coachings</h2><span class="muted">Klicke auf ein Coaching für alle Zahlungen</span></div>
+  <div class="grid tiles" id="tiles"></div>
+
+  <div class="card" style="margin-top:18px">
     <h2>Mitglieder &amp; Umsatz pro <span class="catLabel">Coaching</span></h2>
-    <div class="legend"><span><i style="background:#4b8bf4"></i>Mitglieder</span><span><i style="background:#1a9b55"></i>Umsatz gesamt</span></div>
+    <div class="legend"><span><i style="background:#6b9cf7"></i>Mitglieder</span><span><i style="background:#2fb36a"></i>Umsatz gesamt</span></div>
     <div class="bars" id="chart"></div>
   </div>
+
+  <details class="help">
+    <summary>So funktioniert der Bot</summary>
+    <ol>
+      <li>Ein Kunde schreibt dem Bot auf WhatsApp und nennt das Coaching.</li>
+      <li>Der Bot schickt Preis und Bankdaten. Der Kunde überweist und schickt einen Screenshot.</li>
+      <li>Der Bot prüft den Beleg automatisch. Passt alles, bekommt der Kunde sofort den Gruppenlink.</li>
+      <li>Passt etwas nicht, landet der Beleg unter <a href="/pruefungen">Offene Prüfungen</a>. Dort klickst du auf <b>Bestätigen</b> oder <b>Ablehnen</b> – der Kunde wird automatisch informiert.</li>
+    </ol>
+  </details>
 </main>
-<script src="/nav.js"></script>
 <script src="/app.js"></script>
+<script src="/nav.js"></script>
 <script>
+function drawTodo(s) {
+  const items = [];
+  if (!s.whatsapp.connected && !['starting', 'reconnecting'].includes(s.whatsapp.status)) {
+    items.push(`<div class="banner err row" style="justify-content:space-between"><span><b>WhatsApp ist nicht verbunden.</b> Der Bot kann gerade keine Nachrichten beantworten.</span><a class="btn primary" href="/whatsapp">Jetzt verbinden</a></div>`);
+  }
+  if (s.openReviews) {
+    items.push(`<div class="banner warn row" style="justify-content:space-between"><span><b>${s.openReviews} ${s.openReviews === 1 ? 'Zahlung wartet' : 'Zahlungen warten'} auf deine Prüfung.</b> Die Kunden warten auf ihren Gruppenlink.</span><a class="btn primary" href="/pruefungen">Jetzt prüfen</a></div>`);
+  }
+  if (!s.adminNumbers) {
+    items.push(`<div class="banner info row" style="justify-content:space-between"><span>Tipp: Trag deine Handynummer ein, dann bekommst du bei neuen Prüfungen eine WhatsApp-Nachricht.</span><a class="btn" href="/einstellungen">Einstellungen</a></div>`);
+  }
+  const html = items.join('');
+  const box = document.getElementById('todo');
+  if (box.dataset.html !== html) { box.innerHTML = html; box.dataset.html = html; }
+}
+window.addEventListener('summary', (e) => drawTodo(e.detail));
+
 async function load() {
   let d;
   try { d = await api('/api/overview'); } catch (e) { document.getElementById('err').innerHTML = `<div class="banner err">${esc(e.message)}</div>`; return; }
@@ -31,24 +62,26 @@ async function load() {
   document.getElementById('tilesTitle').textContent = d.categoryLabel + 's';
   const k = d.kpis;
   document.getElementById('kpis').innerHTML = [
-    ['Bestätigte Mitglieder gesamt', k.members],
-    ['Umsatz diesen Monat', euro(k.revenueMonth)],
-    ['Umsatz gesamt', euro(k.revenue)],
-    ['Offene Prüfungen', `<a href="/pruefungen">${k.openReviews}</a>`],
-  ].map(([l, v]) => `<div class="card kpi"><div class="label">${l}</div><div class="value">${v}</div></div>`).join('');
+    ['Bestätigte Mitglieder', k.members, 'alle Coachings'],
+    ['Umsatz diesen Monat', euro(k.revenueMonth), ''],
+    ['Umsatz gesamt', euro(k.revenue), ''],
+    ['Offene Prüfungen', `<a href="/pruefungen">${k.openReviews}</a>`, k.openReviews ? 'warten auf dich' : 'alles erledigt ✓'],
+  ].map(([l, v, h]) => `<div class="card kpi"><div class="label">${l}</div><div class="value">${v}</div><div class="hint">${h}</div></div>`).join('');
   document.getElementById('tiles').innerHTML = d.categories.map((c) => `
     <a class="card tile" href="/kategorie/${encodeURIComponent(c.id)}">
-      <h3>${esc(c.name)}${c.openReviews ? ` <span class="badge" title="offene Prüfungen">${c.openReviews} offen</span>` : ''}<span class="price">${euro(c.price)}</span></h3>
+      <h3>${esc(c.name)}${c.openReviews ? ` <span class="badge">${c.openReviews} offen</span>` : ''}</h3>
+      <div class="price">${euro(c.price)}</div>
       <div class="stats"><div><b>${c.members}</b><span class="muted">Mitglieder</span></div><div><b>${euro(c.revenue)}</b><span class="muted">Umsatz</span></div></div>
       ${c.linkConfigured ? '' : '<div class="muted" style="margin-top:8px;color:#8a5a00">⚠ Kein Gruppenlink eingetragen</div>'}
+      <span class="open">Zahlungen ansehen →</span>
     </a>`).join('');
   const maxM = Math.max(1, ...d.categories.map((c) => c.members));
   const maxR = Math.max(1, ...d.categories.map((c) => c.revenue));
   document.getElementById('chart').innerHTML = d.categories.map((c) => `
     <div>${esc(c.name)}</div>
     <div>
-      <div class="bar-row"><div class="bar members" style="width:${(c.members / maxM) * 80}%"></div>${c.members}</div>
-      <div class="bar-row"><div class="bar revenue" style="width:${(c.revenue / maxR) * 80}%"></div>${euro(c.revenue)}</div>
+      <div class="bar-row"><div class="bar members" style="width:${(c.members / maxM) * 78}%"></div>${c.members}</div>
+      <div class="bar-row"><div class="bar revenue" style="width:${(c.revenue / maxR) * 78}%"></div>${euro(c.revenue)}</div>
     </div>`).join('');
 }
 load(); setInterval(load, 30000);

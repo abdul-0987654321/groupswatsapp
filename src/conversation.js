@@ -222,7 +222,7 @@ function enqueue(msg) {
 
 // Decisions always notify the customer, so they are only allowed while WhatsApp is connected.
 function requireConnected() {
-  if (!bot?.isConnected?.()) throw new Error('WhatsApp ist nicht verbunden – bitte zuerst auf der Seite „WhatsApp-Status“ verbinden.');
+  if (!bot?.isConnected?.()) throw new Error('WhatsApp ist nicht verbunden – bitte zuerst unter „WhatsApp verbinden“ die Verbindung herstellen.');
 }
 
 async function approvePayment(id) {

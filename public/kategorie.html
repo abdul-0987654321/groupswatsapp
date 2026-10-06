@@ -10,21 +10,22 @@
 <body>
 <div id="nav"></div>
 <main>
-  <p><a href="/">← Übersicht</a></p>
+  <p style="margin:0 0 8px"><a href="/">← Zurück zur Übersicht</a></p>
   <h1 id="title">Lade…</h1>
+  <p class="lead">Alle Zahlungen für dieses Coaching. Klicke auf eine Zeile, um Screenshot, erkannte Daten und Chat zu sehen.</p>
   <div id="err"></div>
   <div class="grid" id="kpis"></div>
-  <div class="card">
-    <div class="row" style="justify-content:space-between;margin-bottom:6px">
+  <div class="card" style="margin-top:18px">
+    <div class="row" style="justify-content:space-between;margin-bottom:8px">
       <h2 style="margin:0">Zahlungen</h2>
-      <a class="btn" id="csv" href="#">CSV exportieren</a>
+      <a class="btn" id="csv" href="#">⬇ Als Excel/CSV herunterladen</a>
     </div>
-    <p class="muted" style="margin-top:0">Status: <span class="pill green"><span class="dot green"></span>bestätigt</span> <span class="pill yellow"><span class="dot yellow"></span>in Prüfung</span> <span class="pill red"><span class="dot red"></span>abgelehnt</span> · Zeile anklicken für Details</p>
+    <p class="muted" style="margin-top:0">Ampel: <span class="pill green"><span class="dot green"></span>bestätigt</span> <span class="pill yellow"><span class="dot yellow"></span>in Prüfung</span> <span class="pill red"><span class="dot red"></span>abgelehnt</span></p>
     <div id="table"></div>
   </div>
 </main>
-<script src="/nav.js"></script>
 <script src="/app.js"></script>
+<script src="/nav.js"></script>
 <script>
 const id = decodeURIComponent(location.pathname.split('/').pop());
 document.getElementById('csv').href = `/api/categories/${encodeURIComponent(id)}/export.csv`;
@@ -32,14 +33,15 @@ async function load() {
   let d;
   try { d = await api('/api/categories/' + encodeURIComponent(id)); } catch (e) { document.getElementById('title').textContent = 'Nicht gefunden'; document.getElementById('err').innerHTML = `<div class="banner err">${esc(e.message)}</div>`; return; }
   document.title = d.category.name + ' – Coaching-Dashboard';
-  document.getElementById('title').textContent = `${d.category.name} (${euro(d.category.price)})`;
+  document.querySelector('.topbar .title').textContent = d.category.name;
+  document.getElementById('title').textContent = `${d.category.name} · ${euro(d.category.price)}`;
   const k = d.kpis;
   document.getElementById('kpis').innerHTML = [
     ['Mitglieder', k.members], ['Umsatz gesamt', euro(k.revenue)], ['Umsatz diesen Monat', euro(k.revenueMonth)], ['Offene Prüfungen', k.openReviews],
   ].map(([l, v]) => `<div class="card kpi"><div class="label">${l}</div><div class="value">${v}</div></div>`).join('')
-    + (d.category.linkConfigured ? '' : '<div class="card banner warn" style="grid-column:1/-1">Für dieses Coaching ist noch kein Gruppenlink in config/coachings.json eingetragen.</div>');
+    + (d.category.linkConfigured ? '' : '<div class="banner warn" style="grid-column:1/-1;margin:0">Für dieses Coaching ist noch kein Gruppenlink in config/coachings.json eingetragen.</div>');
   const search = document.querySelector('#table input')?.value || '';
-  renderPaymentTable(document.getElementById('table'), d.rows, { onChange: load });
+  renderPaymentTable(document.getElementById('table'), d.rows, { onChange: () => { load(); window.refreshSummary?.(); } });
   const input = document.querySelector('#table input'); input.value = search; input.dispatchEvent(new Event('input'));
 }
 load();

@@ -36,9 +36,10 @@ app.get('/health', (req, res) => {
 
 // ---- Login ----
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'login.html')));
-app.post('/login', (req, res) => {
-  if (auth.login(req, res)) return res.redirect('/');
-  return res.redirect('/login?fehler=1');
+app.post('/login', async (req, res) => {
+  const result = await auth.login(req, res);
+  if (result === 'ok') return res.redirect('/');
+  return res.redirect(result === 'locked' ? '/login?gesperrt=1' : '/login?fehler=1');
 });
 app.post('/logout', (req, res) => {
   auth.logout(res);
@@ -54,17 +55,52 @@ app.get('/api/whatsapp', (req, res) => {
 app.post('/api/whatsapp/connect', async (req, res) => res.json(await bot.start()));
 app.post('/api/whatsapp/relink', async (req, res) => res.json(await bot.logoutAndRelink()));
 const settings = require('./settings');
-const { MODE, BANK, CURRENCY } = require('./config');
+const { MODE, BANK, ACCOUNTS, CURRENCY, coachings } = require('./config');
 app.get('/api/settings', (req, res) =>
-  res.json({ ok: true, settings: settings.all(), mode: MODE, currency: CURRENCY, account: { recipient: BANK.recipient, account: BANK.account, bankName: BANK.bankName } })
+  res.json({
+    ok: true,
+    settings: settings.all(),
+    mode: MODE,
+    currency: CURRENCY,
+    account: { recipient: BANK.recipient, account: BANK.account, bankName: BANK.bankName },
+    accounts: ACCOUNTS.map((a) => ({ recipient: a.recipient, account: a.account, bankName: a.bankName })),
+    prices: coachings.map((c) => ({ id: c.id, name: c.name, price: c.price, hasLink: Boolean(c.groupLink) })),
+    password: auth.passwordInfo(),
+  })
 );
 app.post('/api/settings', (req, res) => {
   try {
-    for (const [k, v] of Object.entries(req.body || {})) settings.set(k, v);
+    for (const [k, v] of Object.entries(req.body || {})) {
+      if (!settings.PUBLIC.includes(k)) throw new Error(`Einstellung ${k} kann hier nicht geändert werden.`);
+      settings.set(k, v);
+    }
     res.json({ ok: true, settings: settings.all() });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }
+});
+app.post('/api/password', (req, res) => {
+  try {
+    res.json(auth.changePassword(req, res));
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+// Everything the top bar needs in one request
+app.get('/api/summary', (req, res) => {
+  const wa = bot.getStatus();
+  res.json({
+    ok: true,
+    whatsapp: { status: wa.status, connected: wa.connected, me: wa.me },
+    botEnabled: settings.get('botEnabled') !== false,
+    mode: MODE,
+    currency: CURRENCY,
+    account: { recipient: BANK.recipient, account: BANK.account, bankName: BANK.bankName },
+    openReviews: require('./payments').all().filter((p) => p.status === 'NEEDS_REVIEW').length,
+    adminNumbers: (settings.get('adminNumbers') || []).length,
+    storageError: state.storageError || db.status().lastFlushError || null,
+    storageWarning: state.storageWarning,
+  });
 });
 app.post('/api/whatsapp/pairing-code', async (req, res) => {
   try {
@@ -76,6 +112,7 @@ app.post('/api/whatsapp/pairing-code', async (req, res) => {
 
 const page = (file) => (req, res) => res.sendFile(path.join(__dirname, '..', 'public', file));
 app.get('/whatsapp', page('whatsapp.html'));
+app.get('/einstellungen', page('einstellungen.html'));
 require('./dashboard').mount(app);
 
 // ---- Startup ----

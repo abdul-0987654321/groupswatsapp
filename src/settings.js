@@ -22,6 +22,11 @@ const VALIDATE = {
     return [...new Set(list)];
   },
   botEnabled: (v) => Boolean(v), // false = bot paused: messages are saved, but no replies
+  // salted scrypt hash, written only by auth.changePassword (never via the public settings API)
+  dashboardPassword: (v) => {
+    if (!v || typeof v.salt !== 'string' || typeof v.hash !== 'string') throw new Error('Ungültiges Passwort-Format');
+    return { salt: v.salt, hash: v.hash, changedAt: v.changedAt || null };
+  },
   alertOnReview: (v) => Boolean(v),
   alertOnVerified: (v) => Boolean(v),
 };
@@ -38,8 +43,11 @@ function set(key, value) {
   return clean;
 }
 
+// Settings the dashboard may read and change through /api/settings.
+const PUBLIC = ['botEnabled', 'botLanguage', 'adminNumbers', 'alertOnReview', 'alertOnVerified'];
+
 function all() {
-  return Object.fromEntries(Object.keys(DEFAULTS).map((k) => [k, get(k)]));
+  return Object.fromEntries(PUBLIC.map((k) => [k, get(k)]));
 }
 
-module.exports = { get, set, all };
+module.exports = { get, set, all, PUBLIC };

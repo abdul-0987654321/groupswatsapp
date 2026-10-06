@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Einstellungen – Coaching-Dashboard</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="icon" href="data:,">
+<script src="/i18n.js"></script>
+</head>
+<body>
+<div id="nav"></div>
+<main>
+  <h1>Einstellungen</h1>
+  <p class="lead">Alles, was du ohne Programmierkenntnisse ändern kannst. Änderungen gelten sofort.</p>
+
+  <div class="card">
+    <h2>🤖 Bot</h2>
+    <label class="check"><input type="checkbox" id="botEnabled"><span><b>Bot ist an</b><br><span class="muted">Ausschalten, wenn du selbst mit den Kunden schreiben willst. WhatsApp bleibt verbunden, Nachrichten werden weiter gespeichert.</span></span></label>
+    <label class="field">Sprache der Bot-Nachrichten an Kunden</label>
+    <div class="row">
+      <label class="check" style="margin:0"><input type="radio" name="botLang" value="de"> Deutsch</label>
+      <label class="check" style="margin:0"><input type="radio" name="botLang" value="en"> English</label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🔔 Benachrichtigungen an dich (WhatsApp)</h2>
+    <p class="muted" style="margin-top:0">Der Bot schreibt diesen Nummern, wenn etwas passiert. Mehrere Nummern mit Komma trennen. Wichtig: Schreib dem Bot vorher einmal von diesem Handy aus. Nachrichten von diesen Nummern werden nicht als Kunde behandelt – nimm also nicht dein Test-Handy.</p>
+    <label class="field" for="adminNumbers">Deine Handynummer(n) mit Ländervorwahl</label>
+    <input type="tel" id="adminNumbers" inputmode="tel" placeholder="z. B. 49 170 1234567, 92 300 1234567" style="max-width:460px">
+    <label class="check"><input type="checkbox" id="alertOnReview"><span>Nachricht, wenn ein Beleg <b>geprüft werden muss</b></span></label>
+    <label class="check"><input type="checkbox" id="alertOnVerified"><span>Nachricht, wenn eine Zahlung <b>automatisch bestätigt</b> wurde (Kunde hat den Link)</span></label>
+    <div class="row" style="margin-top:12px">
+      <button class="primary" id="saveAlerts">Speichern</button>
+      <button id="testAlert">Testnachricht senden</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🔒 Dashboard-Passwort ändern</h2>
+    <p class="muted" style="margin-top:0" id="pwInfo"></p>
+    <form id="pwForm" autocomplete="off" style="max-width:380px">
+      <label class="field" for="pwCurrent">Aktuelles Passwort</label>
+      <input type="password" id="pwCurrent" autocomplete="current-password" required>
+      <label class="field" for="pwNext">Neues Passwort (mind. 8 Zeichen)</label>
+      <input type="password" id="pwNext" autocomplete="new-password" minlength="8" required>
+      <label class="field" for="pwConfirm">Neues Passwort wiederholen</label>
+      <input type="password" id="pwConfirm" autocomplete="new-password" minlength="8" required>
+      <div style="margin-top:14px"><button class="primary" type="submit">Passwort ändern</button></div>
+    </form>
+    <p class="muted" style="margin-bottom:0;font-size:13px">Passwort vergessen? Im Google Sheet im Tab <b>settings</b> die Zeile <b>dashboardPassword</b> löschen und den Dienst neu starten – dann gilt wieder das Start-Passwort (DASHBOARD_PASSWORD bei Render).</p>
+  </div>
+
+  <div class="card">
+    <h2>💶 Zahlungsdaten &amp; Preise</h2>
+    <div id="payInfo" class="muted">Lade…</div>
+    <p class="muted" style="margin-bottom:0;font-size:13px">Preise, Stichwörter und Gruppenlinks stehen in <b>config/coachings.json</b>, die Bankdaten in <b>config/payment.json</b> (auf GitHub ändern – Render übernimmt es automatisch in 2–3 Minuten).</p>
+  </div>
+</main>
+<script src="/app.js"></script>
+<script src="/nav.js"></script>
+<script>
+async function save(body, okText) {
+  try {
+    const j = await api('/api/settings', { method: 'POST', body: JSON.stringify(body) });
+    if (okText) ui.toast(okText, 'ok');
+    window.refreshSummary?.();
+    return j;
+  } catch (e) { ui.toast(e.message, 'err', 7000); throw e; }
+}
+
+async function load() {
+  const d = await api('/api/settings');
+  const s = d.settings;
+  const be = document.getElementById('botEnabled');
+  be.checked = s.botEnabled !== false;
+  be.onchange = async () => {
+    const enable = be.checked;
+    const ok = await ui.confirm(enable ? 'Der Bot antwortet wieder automatisch auf neue Nachrichten.' : 'Der Bot antwortet niemandem mehr, bis du ihn wieder einschaltest.', { title: enable ? 'Bot einschalten?' : 'Bot pausieren?', ok: enable ? 'Ja, einschalten' : 'Ja, pausieren', icon: enable ? '▶️' : '⏸️' });
+    if (!ok) { be.checked = !enable; return; }
+    save({ botEnabled: enable }, enable ? 'Bot ist wieder an.' : 'Bot ist pausiert.').catch(() => (be.checked = !enable));
+  };
+  document.querySelectorAll('input[name=botLang]').forEach((el) => {
+    el.checked = el.value === (s.botLanguage || 'de');
+    el.onchange = () => save({ botLanguage: el.value }, el.value === 'de' ? 'Der Bot schreibt jetzt auf Deutsch.' : 'Der Bot schreibt jetzt auf Englisch.');
+  });
+  document.getElementById('adminNumbers').value = (s.adminNumbers || []).map((n) => '+' + n).join(', ');
+  document.getElementById('alertOnReview').checked = s.alertOnReview !== false;
+  document.getElementById('alertOnVerified').checked = s.alertOnVerified !== false;
+
+  const pw = d.password || {};
+  document.getElementById('pwInfo').textContent = pw.source === 'dashboard'
+    ? `Eigenes Passwort aktiv (geändert am ${new Date(pw.changedAt).toLocaleString('de-DE')}).`
+    : 'Aktuell gilt das Start-Passwort aus Render (DASHBOARD_PASSWORD). Hier kannst du ein eigenes festlegen.';
+
+  const acc = d.accounts || [];
+  document.getElementById('payInfo').innerHTML = `
+    <p style="margin-top:0">${d.mode === 'test' ? '<span class="pill red">Testmodus</span>' : '<span class="pill green">Live-Modus</span>'} · Währung <b>${esc(d.currency)}</b></p>
+    <dl class="kv">
+      <dt>Konto (sehen die Kunden)</dt><dd>${esc(d.account.recipient)} · ${esc(d.account.account)}${d.account.bankName ? ' · ' + esc(d.account.bankName) : ''}</dd>
+      ${acc.length > 1 ? `<dt>Ebenfalls akzeptiert</dt><dd>${acc.slice(1).map((a) => `${esc(a.recipient)} · ${esc(a.account)}${a.bankName ? ' · ' + esc(a.bankName) : ''}`).join('<br>')}</dd>` : ''}
+      ${d.prices.map((p) => `<dt>${esc(p.name)}</dt><dd>${euro(p.price, d.currency)} ${p.hasLink ? '' : '<span class="pill yellow">kein Gruppenlink</span>'}</dd>`).join('')}
+    </dl>`;
+}
+
+document.getElementById('saveAlerts').onclick = () =>
+  save({
+    adminNumbers: document.getElementById('adminNumbers').value,
+    alertOnReview: document.getElementById('alertOnReview').checked,
+    alertOnVerified: document.getElementById('alertOnVerified').checked,
+  }, 'Benachrichtigungen gespeichert.').then((j) => {
+    document.getElementById('adminNumbers').value = j.settings.adminNumbers.map((n) => '+' + n).join(', ');
+  }).catch(() => {});
+
+document.getElementById('testAlert').onclick = async () => {
+  try {
+    const j = await api('/api/alerts/test', { method: 'POST', body: '{}' });
+    ui.toast('Testnachricht gesendet an ' + j.sentTo.join(', '), 'ok');
+  } catch (e) { ui.toast(e.message, 'err', 7000); }
+};
+
+document.getElementById('pwForm').onsubmit = async (e) => {
+  e.preventDefault();
+  try {
+    await api('/api/password', { method: 'POST', body: JSON.stringify({
+      current: document.getElementById('pwCurrent').value,
+      next: document.getElementById('pwNext').value,
+      confirm: document.getElementById('pwConfirm').value,
+    }) });
+    e.target.reset();
+    ui.toast('Passwort geändert. Andere angemeldete Geräte wurden abgemeldet.', 'ok', 7000);
+    load();
+  } catch (err) { ui.toast(err.message, 'err', 7000); }
+};
+load();
+</script>
+</body>
+</html>

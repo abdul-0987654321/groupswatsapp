@@ -83,10 +83,15 @@ Add a new monitor:
 
 `/health` needs no login and always returns 200.
 
+## Dashboard
+Menu on the left (☰ on phones): **Übersicht** (overview), **Offene Prüfungen** (open reviews), **Chats**, **WhatsApp verbinden** (connect WhatsApp), **Beleg testen** (test a receipt) and **Einstellungen** (settings). The top bar always shows whether WhatsApp is connected and whether the bot is on. Confirmations and messages appear as dialogs and notices inside the page, not as browser popups. Every page has a short explanation at the top. The language switch (Deutsch/English) is in the menu.
+
+**Password:** the first password is `DASHBOARD_PASSWORD` from Render. Under **Einstellungen → Dashboard-Passwort ändern** you can set your own; only a salted hash is stored in the sheet, and other logged-in devices are logged out. Forgot it? Delete the `dashboardPassword` row in the `settings` tab and restart the service, and the Render password works again. After 8 wrong attempts, login from that IP address is blocked for 15 minutes.
+
 ## Dashboard extras
 - **Bot on/off** (button at the top of every page, "● Bot an" / "■ Bot pausiert"): pausing keeps WhatsApp connected but the bot replies to nobody. Incoming messages and images are still saved under Chats and stay unread on the phone, so you can answer them yourself. Turn it back on with the same button; it only answers new messages, not the ones received while paused.
 - **Chats:** every customer conversation in WhatsApp style, including the images and PDFs customers sent. "Beleg … öffnen" jumps to the payment.
-- **Admin alerts** (WhatsApp-Status → Admin-Benachrichtigungen): enter one or more admin numbers with country code. The bot messages them when a receipt needs review, and/or when a payment was confirmed automatically and the link was sent. Use "Testnachricht senden" to check. Write to the bot once from the admin phone first. Messages from admin numbers are ignored by the customer flow, so don't use your test-customer phone as the admin number.
+- **Admin alerts** (Einstellungen → Benachrichtigungen): enter one or more admin numbers with country code. The bot messages them when a receipt needs review, and/or when a payment was confirmed automatically and the link was sent. Use "Testnachricht senden" to check. Write to the bot once from the admin phone first. Messages from admin numbers are ignored by the customer flow, so don't use your test-customer phone as the admin number.
 
 ## How a receipt is checked
 OpenAI (`gpt-4o-mini`) only reads the receipt fields. The decision is made in code (`src/verify.js`):

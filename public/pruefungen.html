@@ -11,22 +11,26 @@
 <div id="nav"></div>
 <main>
   <h1>Offene Prüfungen</h1>
-  <p class="muted">Alle Belege, die nicht automatisch bestätigt werden konnten – über alle Coachings. Älteste zuerst.</p>
+  <p class="lead">Diese Belege konnte der Bot nicht automatisch bestätigen (z.&nbsp;B. falscher Betrag, altes Datum, Duplikat). Öffne einen Eintrag, schau dir den Screenshot an und klicke auf <b>Bestätigen</b> (Kunde bekommt den Link) oder <b>Ablehnen</b> (Kunde wird um einen gültigen Beleg gebeten).</p>
   <div id="err"></div>
   <div class="card"><div id="table"></div></div>
 </main>
-<script src="/nav.js"></script>
 <script src="/app.js"></script>
+<script src="/nav.js"></script>
 <script>
 async function load() {
   try {
     const d = await api('/api/reviews');
+    if (!d.rows.length) {
+      document.getElementById('table').innerHTML = '<div class="empty-state"><div class="big">🎉</div><b>Alles erledigt!</b><br>Gerade wartet keine Zahlung auf eine Prüfung.</div>';
+      return;
+    }
     const search = document.querySelector('#table input')?.value || '';
-    renderPaymentTable(document.getElementById('table'), d.rows, { showCoaching: true, onChange: load });
+    renderPaymentTable(document.getElementById('table'), d.rows, { showCoaching: true, onChange: () => { load(); window.refreshSummary?.(); } });
     const input = document.querySelector('#table input'); input.value = search; input.dispatchEvent(new Event('input'));
   } catch (e) { document.getElementById('err').innerHTML = `<div class="banner err">${esc(e.message)}</div>`; }
 }
-load();
+load(); setInterval(load, 30000);
 </script>
 </body>
 </html>

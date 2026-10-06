@@ -11,18 +11,18 @@
 <div id="nav"></div>
 <main>
   <h1>Beleg testen</h1>
-  <p class="muted">Prüft einen Beleg genau wie der Bot (OpenAI-Auslesung + alle Prüfungen) – es wird <b>nichts gespeichert</b> und <b>keine Nachricht</b> gesendet. Duplikate werden gegen echte, bereits eingereichte Belege geprüft.</p>
+  <p class="lead">Lade hier einen Überweisungs-Screenshot hoch, um zu sehen, was der Bot erkennt und ob er ihn akzeptieren würde. Es wird <b>nichts gespeichert</b> und <b>keine Nachricht</b> gesendet.</p>
   <div class="card">
-    <div class="row">
-      <select id="coaching" style="padding:8px;border-radius:7px;border:1px solid var(--border)"></select>
-      <input type="file" id="file" accept="image/*,application/pdf" multiple>
-      <button class="primary" id="go">Prüfen</button>
-    </div>
+    <label class="field" for="coaching">1. Für welches Coaching?</label>
+    <select id="coaching" style="max-width:360px"></select>
+    <label class="field" for="file">2. Screenshot oder PDF auswählen</label>
+    <input type="file" id="file" accept="image/*,application/pdf" multiple>
+    <div style="margin-top:16px"><button class="primary big" id="go">Beleg prüfen</button></div>
   </div>
   <div id="results"></div>
 </main>
-<script src="/nav.js"></script>
 <script src="/app.js"></script>
+<script src="/nav.js"></script>
 <script>
 api('/api/overview').then((d) => {
   document.getElementById('coaching').innerHTML = d.categories.map((c) => `<option value="${esc(c.id)}">${esc(c.name)} (${euro(c.price)})</option>`).join('');
@@ -31,16 +31,19 @@ const toBase64 = (file) => new Promise((res, rej) => { const r = new FileReader(
 document.getElementById('go').onclick = async () => {
   const files = Array.from(document.getElementById('file').files);
   const out = document.getElementById('results');
-  if (!files.length) return alert('Bitte Datei auswählen');
+  if (!files.length) return ui.toast('Bitte zuerst eine Datei auswählen.', 'warn');
   out.innerHTML = '';
   for (const f of files) {
     const box = document.createElement('div'); box.className = 'card'; box.innerHTML = `<h2>${esc(f.name)}</h2><p class="muted">Wird geprüft…</p>`; out.appendChild(box);
     try {
       const r = await api('/api/test-receipt', { method: 'POST', body: JSON.stringify({ coachingId: document.getElementById('coaching').value, mimeType: f.type, base64: await toBase64(f) }) });
       const e = r.extracted;
-      box.innerHTML = `<h2>${esc(f.name)} → ${statusPill(r.status)}</h2>
+      const verdict = r.status === 'VERIFIED'
+        ? '<div class="banner ok"><b>✅ Würde automatisch bestätigt</b> – der Kunde bekäme sofort den Gruppenlink.</div>'
+        : '<div class="banner warn"><b>🟡 Würde zur Prüfung gehen</b> – siehe rote Punkte unten.</div>';
+      box.innerHTML = `<h2>${esc(f.name)}</h2>${verdict}
         <dl class="kv">${[['Empfänger', e.recipientName], ['IBAN', e.recipientIban], ['Betrag', e.amount == null ? null : e.amount + ' ' + (e.currency || '')], ['Datum', [e.date, e.time].filter(Boolean).join(' ')], ['→ Zahlungsdatum', dateDE(r.paymentDate)], ['Absender', r.senderName], ['Verwendungszweck', e.reference], ['Bank / App', e.bankApp]].map(([k, v]) => `<dt>${k}</dt><dd>${v == null || v === '' ? '–' : esc(v)}</dd>`).join('')}</dl>
-        <ul class="checks" style="margin-top:10px">${r.checks.map((c) => `<li class="${c.ok ? 'ok' : 'fail'}">${c.ok ? '✓' : '✗'} ${esc(c.label)}${c.detail ? ' – ' + esc(c.detail) : ''}</li>`).join('')}</ul>`;
+        <ul class="checks" style="margin-top:12px">${r.checks.map((c) => `<li class="${c.ok ? 'ok' : 'fail'}">${c.ok ? '✓' : '✗'} ${esc(c.label)}${c.detail ? ' – ' + esc(c.detail) : ''}</li>`).join('')}</ul>`;
     } catch (err) { box.innerHTML = `<h2>${esc(f.name)}</h2><div class="banner err">${esc(err.message)}</div>`; }
   }
 };

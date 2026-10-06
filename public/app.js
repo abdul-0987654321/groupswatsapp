@@ -15,6 +15,36 @@ let CURRENCY = 'EUR'; // set from every API response (EUR live, e.g. PKR in test
 const euro = (n, cur) => (n == null || n === '' ? '–' : Number(n).toLocaleString('de-DE', { style: 'currency', currency: cur || CURRENCY }));
 const dateDE = (ymd) => (ymd ? ymd.split('-').reverse().join('.') : '–');
 const dateTime = (iso) => (iso ? new Date(iso).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '–');
+// ---------- in-page dialogs & notices (no browser popups) ----------
+const ui = {
+  /** Confirmation dialog. Resolves true/false. */
+  confirm(message, { title = 'Bist du sicher?', ok = 'Ja, fortfahren', cancel = 'Abbrechen', danger = false, icon = danger ? '⚠️' : '❓' } = {}) {
+    return new Promise((resolve) => {
+      const bg = document.createElement('div');
+      bg.className = 'modal-bg';
+      bg.innerHTML = `<div class="modal small" role="dialog" aria-modal="true">
+        <div class="icon">${icon}</div><h2>${esc(title)}</h2><p>${esc(message)}</p>
+        <div class="actions"><button data-v="0">${esc(cancel)}</button><button data-v="1" class="${danger ? 'danger' : 'primary'}">${esc(ok)}</button></div></div>`;
+      const done = (v) => { bg.remove(); document.removeEventListener('keydown', onKey); resolve(v); };
+      const onKey = (e) => { if (e.key === 'Escape') done(false); };
+      bg.addEventListener('click', (e) => { if (e.target === bg) done(false); const b = e.target.closest('[data-v]'); if (b) done(b.dataset.v === '1'); });
+      document.addEventListener('keydown', onKey);
+      document.body.appendChild(bg);
+      bg.querySelector('[data-v="1"]').focus();
+    });
+  },
+  /** Small notice in the bottom-right corner. type: ok | err | warn | info */
+  toast(message, type = 'ok', ms = 4500) {
+    let box = document.querySelector('.toasts');
+    if (!box) { box = document.createElement('div'); box.className = 'toasts'; box.setAttribute('aria-live', 'polite'); document.body.appendChild(box); }
+    const t = document.createElement('div');
+    t.className = 'toast ' + type;
+    t.textContent = message;
+    box.appendChild(t);
+    setTimeout(() => t.remove(), ms);
+  },
+};
+
 function statusPill(status) {
   const [color, label] = STATUS_TEXT[status] || ['grey', status];
   return `<span class="pill ${color}"><span class="dot ${color}"></span>${esc(label)}</span>`;
@@ -67,7 +97,7 @@ function renderPaymentTable(container, rows, { showCoaching = false, onChange } 
         <td>${euro(r.amount, r.currency)}${r.amount != null && r.amount !== r.expectedAmount ? ` <span class="muted">(soll ${euro(r.expectedAmount, r.currency)})</span>` : ''}</td>
         <td>${dateDE(r.paymentDate)}</td>
         <td>${statusPill(r.status)}${r.status === 'NEEDS_REVIEW' && r.reasons.length ? `<div class="muted" style="font-size:12px;white-space:normal;max-width:280px">${esc(r.reasons.join(' · '))}</div>` : ''}</td>
-      </tr>`).join('') : `<tr><td colspan="7" class="muted">Keine Einträge.</td></tr>`;
+      </tr>`).join('') : `<tr><td colspan="7"><div class="empty-state"><div class="big">📭</div>Keine Einträge.</div></td></tr>`;
   }
   input.addEventListener('input', draw);
   tbody.addEventListener('click', (e) => {
@@ -131,19 +161,22 @@ async function openPayment(id, onChange) {
   bg.querySelectorAll('[data-open]').forEach((a) => a.addEventListener('click', (ev) => { ev.preventDefault(); if (a.dataset.open === p.id) return; close(); openPayment(a.dataset.open, onChange); }));
   bg.querySelectorAll('[data-act]').forEach((btn) => btn.addEventListener('click', async () => {
     const act = btn.dataset.act;
-    const question = { approve: 'Zahlung bestätigen? Der Kunde bekommt automatisch den Gruppenlink.', reject: 'Zahlung ablehnen? Der Kunde wird gebeten, einen gültigen Beleg zu schicken.', 'resend-link': 'Gruppenlink erneut an den Kunden senden?' }[act];
-    if (!confirm(question)) return;
+    const question = { approve: 'Der Kunde bekommt automatisch den Gruppenlink per WhatsApp.', reject: 'Der Kunde wird per WhatsApp gebeten, einen gültigen Beleg zu schicken.', 'resend-link': 'Der Kunde bekommt den Gruppenlink noch einmal per WhatsApp.' }[act];
+    const titles = { approve: 'Zahlung bestätigen?', reject: 'Zahlung ablehnen?', 'resend-link': 'Link erneut senden?' };
+    const oks = { approve: 'Ja, bestätigen', reject: 'Ja, ablehnen', 'resend-link': 'Ja, senden' };
+    if (!(await ui.confirm(question, { title: titles[act], ok: oks[act], danger: act === 'reject', icon: act === 'approve' ? '✅' : act === 'reject' ? '⛔' : '🔗' }))) return;
     bg.querySelectorAll('[data-act]').forEach((b) => (b.disabled = true));
     const msg = bg.querySelector('#actMsg');
     msg.textContent = 'Wird ausgeführt… (Tippen-Anzeige 2–3 Sek.)';
     try {
       const r = await api(`/api/payments/${encodeURIComponent(p.id)}/${act}`, { method: 'POST', body: '{}' });
-      if (r.warning) alert(r.warning);
+      if (r.warning) ui.toast(r.warning, 'warn', 8000);
+      else ui.toast({ approve: 'Bestätigt – der Kunde hat den Gruppenlink bekommen.', reject: 'Abgelehnt – der Kunde wurde informiert.', 'resend-link': 'Link wurde erneut gesendet.' }[act], 'ok');
       close();
       onChange && onChange();
     } catch (err) {
       msg.textContent = '';
-      alert(err.message);
+      ui.toast(err.message, 'err', 8000);
       bg.querySelectorAll('[data-act]').forEach((b) => (b.disabled = false));
     }
   }));

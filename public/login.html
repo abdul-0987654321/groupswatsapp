@@ -7,19 +7,24 @@
 <link rel="icon" href="data:,">
 <script src="/i18n.js"></script>
 </head>
-<body>
-<main>
+<body class="login-page">
   <form class="card login" method="post" action="/login">
-    <span id="langSwitch"></span>
-    <h1>Coaching-Dashboard</h1>
-    <p class="muted">Bitte melde dich mit dem Dashboard-Passwort an.</p>
-    <p id="err" class="banner err" hidden>Falsches Passwort.</p>
-    <p><input type="password" name="password" placeholder="Passwort" autofocus required></p>
+    <div class="top">
+      <div class="logo"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+      <span id="langSwitch"></span>
+    </div>
+    <h1>Willkommen zurück</h1>
+    <p class="muted" style="margin-top:4px">Melde dich mit dem Dashboard-Passwort an.</p>
+    <p id="err" class="banner err" hidden>Falsches Passwort. Bitte versuche es noch einmal.</p>
+    <p id="locked" class="banner err" hidden>Zu viele falsche Versuche. Aus Sicherheitsgründen ist die Anmeldung für 15 Minuten gesperrt.</p>
+    <label class="field" for="password">Passwort</label>
+    <input type="password" id="password" name="password" placeholder="Passwort" autocomplete="current-password" autofocus required>
     <button class="primary" type="submit">Anmelden</button>
   </form>
-</main>
 <script>
 document.getElementById('langSwitch').outerHTML = '<span class="lang-switch">' + ['de', 'en'].map((l) => `<button type="button" class="${(window.dashboardLang || 'de') === l ? 'on' : ''}" onclick="setDashboardLang('${l}')">${l.toUpperCase()}</button>`).join('') + '</span>';
-if (location.search.includes('fehler')) document.getElementById('err').hidden = false;</script>
+if (location.search.includes('fehler')) document.getElementById('err').hidden = false;
+if (location.search.includes('gesperrt')) document.getElementById('locked').hidden = false;
+</script>
 </body>
 </html>

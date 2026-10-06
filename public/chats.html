@@ -11,17 +11,18 @@
 <div id="nav"></div>
 <main style="max-width:1300px">
   <h1>Chats</h1>
+  <p class="lead">Alle WhatsApp-Gespräche mit Kunden – inklusive geschickter Bilder. Wähle links einen Kunden aus.</p>
   <div id="err"></div>
   <div class="card chats" id="chats">
     <div class="list">
       <div class="search"><input type="search" id="q" placeholder="Suche nach Name, ID oder Telefon…" aria-label="Suche"></div>
       <div class="items" id="items"><p class="muted" style="padding:12px">Lade…</p></div>
     </div>
-    <div class="conv" id="conv"><div class="empty">Wähle links einen Chat aus.</div></div>
+    <div class="conv" id="conv"><div class="empty"><div style="font-size:34px">💬</div>Wähle links einen Chat aus.</div></div>
   </div>
 </main>
-<script src="/nav.js"></script>
 <script src="/app.js"></script>
+<script src="/nav.js"></script>
 <script>
 let rows = [];
 let current = decodeURIComponent(location.hash.slice(1)) || null;
@@ -75,13 +76,14 @@ async function loadConv(keepScroll) {
   else chat.scrollTop = oldChat.scrollTop;
   conv.querySelectorAll('[data-open]').forEach((a) => a.addEventListener('click', (ev) => { ev.preventDefault(); openPayment(a.dataset.open, () => { loadList(); loadConv(true); }); }));
   document.getElementById('del').onclick = async () => {
-    if (!confirm('Chat, Kundendaten und Zahlungen dieser Nummer löschen? Die Nummer startet danach komplett neu (wie ein neuer Kunde). Das kann nicht rückgängig gemacht werden.')) return;
+    if (!(await ui.confirm('Chat, Kundendaten und Zahlungen dieser Nummer werden gelöscht. Die Nummer startet danach komplett neu (wie ein neuer Kunde). Das kann nicht rückgängig gemacht werden.', { title: 'Chat löschen?', ok: 'Ja, löschen', danger: true, icon: '🗑️' }))) return;
     try {
       await api('/api/chats/' + encodeURIComponent(current) + '/delete', { method: 'POST', body: '{}' });
       current = null; history.replaceState(null, '', '/chats'); box.classList.remove('open');
       document.getElementById('conv').innerHTML = '<div class="empty">Chat gelöscht.</div>';
       loadList();
-    } catch (e) { alert(e.message); }
+      ui.toast('Chat gelöscht – die Nummer startet beim nächsten „Hallo“ neu.', 'ok');
+    } catch (e) { ui.toast(e.message, 'err'); }
   };
   document.getElementById('back').onclick = () => { current = null; history.replaceState(null, '', '/chats'); box.classList.remove('open'); drawList(); };
 }
