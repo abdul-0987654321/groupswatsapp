@@ -65,6 +65,12 @@
     'SHEET_WEBHOOK_URL ist nicht gesetzt – Daten werden nur im Arbeitsspeicher gehalten und gehen beim Neustart verloren.':
       'SHEET_WEBHOOK_URL is not set – data is only kept in memory and is lost on restart.',
     'Bot-Sprache': 'Bot language', 'Gespeichert ✓': 'Saved ✓',
+    '● Bot an': '● Bot on', '■ Bot pausiert': '■ Bot paused',
+    'Klicken, um den Bot zu pausieren': 'Click to pause the bot', 'Klicken, um den Bot wieder einzuschalten': 'Click to turn the bot back on',
+    'Bot pausiert – der Bot antwortet niemandem. Nachrichten werden gespeichert (siehe Chats) und bleiben auf dem Handy ungelesen.':
+      'Bot paused – the bot replies to no one. Messages are saved (see Chats) and stay unread on the phone.',
+    'Bot wieder einschalten? Er antwortet ab jetzt wieder automatisch auf neue Nachrichten.': 'Turn the bot back on? It will reply automatically to new messages again.',
+    'Bot pausieren? Er antwortet dann niemandem mehr, bis du ihn wieder einschaltest. WhatsApp bleibt verbunden.': 'Pause the bot? It will reply to no one until you turn it back on. WhatsApp stays connected.',
     'Chats': 'Chats', 'Chat löschen': 'Delete chat', 'Chat gelöscht.': 'Chat deleted.',
     'Chat, Kundendaten und Zahlungen dieser Nummer löschen? Die Nummer startet danach komplett neu (wie ein neuer Kunde). Das kann nicht rückgängig gemacht werden.':
       "Delete this number's chat, customer data and payments? The number then starts completely fresh (like a new customer). This cannot be undone.", 'Wähle links einen Chat aus.': 'Select a chat on the left.', 'Keine Chats.': 'No chats.', 'Keine Datei': 'No file',

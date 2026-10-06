@@ -224,8 +224,12 @@ async function start() {
         const jid = msg.key?.remoteJid;
         if (!msg.message || msg.key.fromMe || !isPrivateChat(jid)) continue;
         void (async () => {
-          await sleep(readDelay());
-          await markRead(msg);
+          // While the bot is paused, leave messages unread so they stand out on the phone.
+          const paused = require('./settings').get('botEnabled') === false;
+          if (!paused) {
+            await sleep(readDelay());
+            await markRead(msg);
+          }
           try {
             await messageHandler(msg);
           } catch (err) {

@@ -337,3 +337,15 @@ test('deleting a customer lets the same number start fresh (and reuse its screen
   await h.say(h.textMsg(jid, 'Sport'));
   assert.match((await h.say(h.imageMsg(jid, shot)))[0], /^Zahlung bestätigt ✅/, 'no duplicate after reset');
 });
+
+test('bot paused: messages are saved but nobody gets a reply; switching on resumes', async () => {
+  const h = await createHarness();
+  const settings = require('../src/settings');
+  settings.set('botEnabled', false);
+  const jid = h.phoneJid(50);
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'Hallo')), []);
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'Sport')), []);
+  assert.deepStrictEqual(h.customers.chatHistory(jid).map((m) => m.text), ['Hallo', 'Sport']);
+  settings.set('botEnabled', true);
+  assert.match((await h.say(h.textMsg(jid, 'Sport')))[0], /^Das Sport Coaching kostet/);
+});

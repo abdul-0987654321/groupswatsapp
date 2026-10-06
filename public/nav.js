@@ -19,13 +19,38 @@ function langSwitch() {
   document.getElementById('nav').outerHTML =
     '<header class="top"><span class="brand">Coaching-Dashboard</span><nav>' +
     links.map(([href, label]) => `<a href="${href}" class="${active(href) ? 'active' : ''}">${label}</a>`).join('') +
-    '</nav><div class="right">' + langSwitch() + '<form method="post" action="/logout"><button type="submit">Abmelden</button></form></div></header>';
+    '</nav><div class="right"><button type="button" id="botToggle" class="bot-toggle" hidden></button>' + langSwitch() + '<form method="post" action="/logout"><button type="submit">Abmelden</button></form></div></header>';
   // Badge with the number of open reviews
   fetch('/api/reviews').then((r) => (r.ok ? r.json() : null)).then((d) => {
     const n = d?.rows?.length || 0;
     const a = document.querySelector('header.top a[href="/pruefungen"]');
     if (n && a) a.insertAdjacentHTML('beforeend', ` <span class="badge">${n}</span>`);
   }).catch(() => {});
+  // Bot on/off switch (pausing keeps WhatsApp connected but stops all automatic replies)
+  const toggle = document.getElementById('botToggle');
+  function drawToggle(enabled) {
+    toggle.hidden = false;
+    toggle.className = 'bot-toggle ' + (enabled ? 'on' : 'off');
+    toggle.textContent = enabled ? '● Bot an' : '■ Bot pausiert';
+    toggle.title = enabled ? 'Klicken, um den Bot zu pausieren' : 'Klicken, um den Bot wieder einzuschalten';
+    toggle.dataset.enabled = enabled ? '1' : '0';
+    document.getElementById('pausedBanner')?.remove();
+    if (!enabled) {
+      document.querySelector('header.top').insertAdjacentHTML('afterend',
+        '<div id="pausedBanner" class="paused">Bot pausiert – der Bot antwortet niemandem. Nachrichten werden gespeichert (siehe Chats) und bleiben auf dem Handy ungelesen.</div>');
+    }
+  }
+  fetch('/api/settings').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) drawToggle(d.settings?.botEnabled !== false); }).catch(() => {});
+  toggle.addEventListener('click', async () => {
+    const enable = toggle.dataset.enabled !== '1';
+    const q = enable
+      ? 'Bot wieder einschalten? Er antwortet ab jetzt wieder automatisch auf neue Nachrichten.'
+      : 'Bot pausieren? Er antwortet dann niemandem mehr, bis du ihn wieder einschaltest. WhatsApp bleibt verbunden.';
+    if (!confirm(q)) return;
+    const res = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ botEnabled: enable }) });
+    const d = await res.json();
+    if (d.ok) drawToggle(d.settings.botEnabled !== false); else alert(d.error);
+  });
   // Big red banner while the bot runs in TEST mode (test account + test prices)
   fetch('/api/settings').then((r) => (r.ok ? r.json() : null)).then((d) => {
     if (d?.mode !== 'test') return;

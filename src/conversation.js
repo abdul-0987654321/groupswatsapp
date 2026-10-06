@@ -16,6 +16,7 @@ const payments = require('./payments');
 const { getCoaching } = require('./config');
 const { detectCoaching, keywordMatches, isOnlyGreeting, wantsChange } = require('./coaching-detect');
 const alerts = require('./alerts');
+const settings = require('./settings');
 const db = require('./storage/db');
 
 const { STAGES } = customers;
@@ -139,6 +140,11 @@ async function handleMessage(msg) {
   const text = getText(m);
   const chatEntry = customers.logChat(customer, 'in', media ? `[${media.label}]${text ? ' ' + text : ''}` : text || '[Nachricht ohne Text]', media ? { mimeType: media.mimeType } : {});
   const isReceiptStep = customer.stage === STAGES.AWAITING_SCREENSHOT || customer.stage === STAGES.IN_REVIEW;
+  // Bot paused from the dashboard: keep the message (and image) in the chat, but don't reply.
+  if (settings.get('botEnabled') === false) {
+    if (media) storeChatMedia(customer, msg, media, chatEntry);
+    return;
+  }
   if (media && !isReceiptStep) storeChatMedia(customer, msg, media, chatEntry);
 
   switch (customer.stage) {

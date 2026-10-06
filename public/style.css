@@ -132,3 +132,8 @@ header.top .brand { white-space: nowrap; }
   body.chats-page h1 { display: none; }
   .chats { height: calc(100dvh - 130px); min-height: 360px; }
 }
+
+.bot-toggle { font-weight: 600; border: none; white-space: nowrap; }
+.bot-toggle.on { background: #1a9b55; color: #fff; }
+.bot-toggle.off { background: #d9a200; color: #1d2330; }
+.paused { background: #fdf3d6; color: #6b4e00; padding: 8px 16px; font-weight: 600; text-align: center; border-bottom: 1px solid #f0d58a; }

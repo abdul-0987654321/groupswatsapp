@@ -84,6 +84,7 @@ Add a new monitor:
 `/health` needs no login and always returns 200.
 
 ## Dashboard extras
+- **Bot on/off** (button at the top of every page, "● Bot an" / "■ Bot pausiert"): pausing keeps WhatsApp connected but the bot replies to nobody. Incoming messages and images are still saved under Chats and stay unread on the phone, so you can answer them yourself. Turn it back on with the same button; it only answers new messages, not the ones received while paused.
 - **Chats:** every customer conversation in WhatsApp style, including the images and PDFs customers sent. "Beleg … öffnen" jumps to the payment.
 - **Admin alerts** (WhatsApp-Status → Admin-Benachrichtigungen): enter one or more admin numbers with country code. The bot messages them when a receipt needs review, and/or when a payment was confirmed automatically and the link was sent. Use "Testnachricht senden" to check. Write to the bot once from the admin phone first. Messages from admin numbers are ignored by the customer flow, so don't use your test-customer phone as the admin number.
 

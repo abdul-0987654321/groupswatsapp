@@ -3,7 +3,7 @@
 
 const db = require('./storage/db');
 
-const DEFAULTS = { botLanguage: 'de', adminNumbers: [], alertOnReview: true, alertOnVerified: true };
+const DEFAULTS = { botEnabled: true, botLanguage: 'de', adminNumbers: [], alertOnReview: true, alertOnVerified: true };
 
 // Validators return the cleaned value or throw.
 const VALIDATE = {
@@ -21,6 +21,7 @@ const VALIDATE = {
     }
     return [...new Set(list)];
   },
+  botEnabled: (v) => Boolean(v), // false = bot paused: messages are saved, but no replies
   alertOnReview: (v) => Boolean(v),
   alertOnVerified: (v) => Boolean(v),
 };
