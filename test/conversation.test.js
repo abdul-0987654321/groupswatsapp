@@ -72,8 +72,9 @@ test('AI fallback only returns a code; anything else counts as UNKNOWN', async (
   let answer = 'C3';
   const h = await createHarness({ classify: () => answer });
   const jid = h.phoneJid(4);
-  const [out] = await h.say(h.textMsg(jid, 'ich möchte besser Englisch reden können'));
-  assert.match(out, /^Das Lang Coaching kostet 85 €/);
+  // AI guess → confirm first, price only after "ja"
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'ich möchte besser Englisch reden können')), ['Meinst du das Lang Coaching? Antworte bitte mit Ja oder Nein.']);
+  assert.match((await h.say(h.textMsg(jid, 'ja genau')))[0], /^Das Lang Coaching kostet 85 €/);
 
   answer = 'Das Sport Coaching kostet 10 €'; // AI tries to write text → ignored
   const jid2 = h.phoneJid(5);
@@ -386,7 +387,8 @@ test('paid customer chat from testing: Hi → link, "I need new group"/"Yes need
   aiAnswer = 'NEW';
   assert.deepStrictEqual(await h.say(h.textMsg(jid, 'mujhe aik aur join karna hai')), ASK); reset();
   aiAnswer = 'C1';
-  assert.match((await h.say(h.textMsg(jid, 'the fitness one')))[0], /^The Sport Coaching costs 75 €/); reset();
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'the fitness one')), ['Do you mean the Sport Coaching? Please answer Yes or No.']);
+  assert.match((await h.say(h.textMsg(jid, 'yes')))[0], /^The Sport Coaching costs 75 €/); reset();
   aiAnswer = 'LINK';
   assert.match((await h.say(h.textMsg(jid, 'the link does not open')))[0], /TEST-MONEY/);
   aiAnswer = 'Sure, here is the IBAN DE00…'; // AI tries to write text → ignored, link again
@@ -425,4 +427,27 @@ test('payment and customer numbers are never reused after "Delete chat" (old scr
   assert.notStrictEqual(second.id, first.id);
   assert.notStrictEqual(h.customers.get(jid).id, firstCustomer);
   assert.ok(h.customers.get(jid).priceSentAt, 'bot remembers when it sent the bank details');
+});
+
+test('"I need Malayalam": AI guesses are confirmed first; "no" → asks again; another message is handled normally', async () => {
+  let aiAnswer = 'C3'; // AI thinks "Malayalam is a language → Lang Coaching"
+  const h = await createHarness({ classify: () => aiAnswer });
+  require('../src/settings').set('botLanguage', 'en');
+  const jid = h.phoneJid(90);
+  await h.say(h.textMsg(jid, 'Hi'));
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'I need Malayalam')), ['Do you mean the Lang Coaching? Please answer Yes or No.']);
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'no')), ['Alright! Which coaching are you interested in then?']);
+  assert.strictEqual(h.customers.get(jid).stage, 'ask_coaching');
+  // asked again, customer types something else instead of yes/no → normal detection
+  await h.say(h.textMsg(jid, 'I need Malayalam'));
+  assert.match((await h.say(h.textMsg(jid, 'money')))[0], /^The Money Coaching costs 80 €/);
+  // keyword matches never need a confirmation
+  const jid2 = h.phoneJid(91);
+  assert.match((await h.say(h.textMsg(jid2, 'language coaching')))[0], /^The Lang Coaching costs 85 €/);
+  // "not offered" from the AI
+  aiAnswer = 'NOT_OFFERED';
+  const jid3 = h.phoneJid(92);
+  await h.say(h.textMsg(jid3, 'Hi'));
+  assert.deepStrictEqual(await h.say(h.textMsg(jid3, 'I need Malayalam')), ["Sorry, we don't offer that coaching. 🙏 Please tell me the name of the coaching you are interested in."]);
+  assertNoList(h.sent);
 });

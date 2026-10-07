@@ -79,7 +79,7 @@
     'Chat, Kundendaten und Zahlungen dieser Nummer löschen? Die Nummer startet danach komplett neu (wie ein neuer Kunde). Das kann nicht rückgängig gemacht werden.':
       "Delete this number's chat, customer data and payments? The number then starts completely fresh (like a new customer). This cannot be undone.", 'Wähle links einen Chat aus.': 'Select a chat on the left.', 'Keine Chats.': 'No chats.', 'Keine Datei': 'No file',
     '📄 PDF öffnen': '📄 Open PDF', 'Bild': 'Image',
-    'neu': 'new', 'wählt Coaching': 'choosing coaching', 'wartet auf Beleg': 'waiting for receipt', 'freigeschaltet': 'unlocked',
+    'neu': 'new', 'wählt Coaching': 'choosing coaching', 'bestätigt Coaching': 'confirming coaching', 'wartet auf Beleg': 'waiting for receipt', 'freigeschaltet': 'unlocked',
     'Admin-Benachrichtigungen': 'Admin alerts',
     'Der Bot schreibt diesen Nummern auf WhatsApp, wenn etwas passiert. Mehrere Nummern mit Komma trennen. Tipp: vorher einmal vom Admin-Handy an den Bot schreiben. Nachrichten von Admin-Nummern werden nicht als Kunde behandelt.':
       'The bot messages these numbers on WhatsApp when something happens. Separate several numbers with commas. Tip: write to the bot once from the admin phone first. Messages from admin numbers are not treated as customers.',

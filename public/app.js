@@ -1,6 +1,6 @@
 // Shared helpers for the dashboard pages.
 const STATUS_TEXT = { VERIFIED: ['green', 'bestätigt'], NEEDS_REVIEW: ['yellow', 'in Prüfung'], REJECTED: ['red', 'abgelehnt'], SUPERSEDED: ['grey', 'ersetzt'] };
-const STAGE_TEXT = { new: 'neu', ask_coaching: 'wählt Coaching', awaiting_screenshot: 'wartet auf Beleg', in_review: 'in Prüfung', verified: 'freigeschaltet' };
+const STAGE_TEXT = { new: 'neu', ask_coaching: 'wählt Coaching', confirm_coaching: 'bestätigt Coaching', awaiting_screenshot: 'wartet auf Beleg', in_review: 'in Prüfung', verified: 'freigeschaltet' };
 
 async function api(url, opts = {}) {
   const res = await fetch(url, { ...opts, headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) } });

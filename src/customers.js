@@ -13,6 +13,7 @@ const db = require('./storage/db');
 const STAGES = {
   NEW: 'new',
   ASK_COACHING: 'ask_coaching',
+  CONFIRM_COACHING: 'confirm_coaching', // AI guessed a coaching → customer must say yes first
   AWAITING_SCREENSHOT: 'awaiting_screenshot',
   IN_REVIEW: 'in_review',
   VERIFIED: 'verified',

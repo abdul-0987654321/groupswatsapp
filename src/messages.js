@@ -30,6 +30,8 @@ const TEXTS = {
       `Du hast das ${c.name} gewählt (${price(c)}). Bitte schick mir einen Screenshot deiner Überweisung (als Bild oder PDF), damit ich die Zahlung prüfen kann.\n` +
       'Möchtest du ein anderes Coaching? Schreib mir einfach, welches.',
     changeCoaching: () => 'Kein Problem! Für welches Coaching interessierst du dich?',
+    confirmCoaching: (c) => `Meinst du das ${c.name}? Antworte bitte mit Ja oder Nein.`,
+    afterNo: () => 'Alles klar! Für welches Coaching interessierst du dich dann?',
     notOffered: () => 'Dieses Coaching bieten wir leider nicht an. 🙏 Schreib mir bitte den Namen des Coachings, für das du dich interessierst.',
     askCoachingHint: () => 'Schreib mir einfach den Namen des Coachings, so wie er in der Anzeige oder in der Gruppe stand. 😊',
     askCoachingHelp: () => 'Ich habe leider noch nicht verstanden, welches Coaching du meinst. Wie hieß das Coaching in der Anzeige?',
@@ -58,6 +60,8 @@ const TEXTS = {
       `You chose the ${c.name} (${price(c)}). Please send me a screenshot of your transfer (as an image or PDF) so I can check the payment.\n` +
       'Would you like a different coaching? Just tell me which one.',
     changeCoaching: () => 'No problem! Which coaching are you interested in?',
+    confirmCoaching: (c) => `Do you mean the ${c.name}? Please answer Yes or No.`,
+    afterNo: () => 'Alright! Which coaching are you interested in then?',
     notOffered: () => "Sorry, we don't offer that coaching. 🙏 Please tell me the name of the coaching you are interested in.",
     askCoachingHint: () => 'Just write me the name of the coaching as it was shown in the ad or in the group. 😊',
     askCoachingHelp: () => "Sorry, I didn't quite get which coaching you mean yet. What was the coaching called in the ad?",

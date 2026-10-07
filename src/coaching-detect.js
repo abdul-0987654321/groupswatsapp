@@ -87,6 +87,16 @@ function isYes(text) {
   return tokens(text).some((t) => YES_WORDS.has(t));
 }
 
+// Answers to "Do you mean the X Coaching? Yes/No"
+const CONFIRM_WORDS = new Set([...YES_WORDS, 'ok', 'okay', 'correct', 'right', 'exactly', 'richtig', 'genau', 'stimmt', 'jep', 'jup', 'bilkul', 'theek', 'thik']);
+const NO_WORDS = new Set(['no', 'nope', 'nah', 'not', 'nein', 'nee', 'ne', 'nicht', 'kein', 'keins', 'falsch', 'wrong', 'nahi', 'nai', 'nahin']);
+function isNo(text) {
+  return tokens(text).some((t) => NO_WORDS.has(t));
+}
+function isConfirm(text) {
+  return !isNo(text) && tokens(text).some((t) => CONFIRM_WORDS.has(t));
+}
+
 // "thanks", "ok", "danke" → just a polite answer, no need to resend anything
 const THANKS_WORDS = new Set(['thanks', 'thank', 'thx', 'ty', 'danke', 'dankeschoen', 'dank', 'vielen', 'merci', 'shukriya', 'shukria', 'ok', 'okay', 'okey', 'perfect', 'perfekt', 'super', 'great', 'top', 'cool', 'nice', 'you', 'so', 'much', 'very', 'sehr', 'got', 'it', 'alles', 'klar', 'gut']);
 function isOnlyThanks(text) {
@@ -115,8 +125,11 @@ async function askAI(text) {
           content:
             'Du ordnest WhatsApp-Nachrichten von Kunden einem Coaching zu. Mögliche Coachings:\n' +
             options +
-            '\nNOT_OFFERED = der Kunde nennt ein konkretes Thema, Produkt, Land oder Coaching, das zu KEINEM der Coachings oben passt ' +
-            '(z. B. "Mango", "Malaysia", "Yoga-Kurs", "Kochen").\n' +
+'\nWICHTIG: Ordne ein Coaching NUR zu, wenn der Kunde genau dieses Coaching meint – über den Namen, ein Stichwort, einen Tippfehler oder eine Übersetzung davon. ' +
+            'Ein konkretes Unterthema, das nicht in den Stichwörtern steht (z. B. eine bestimmte Sprache wie "Malayalam" oder "Französisch", eine bestimmte Sportart, ein Land, ein Produkt), ist KEIN Treffer. ' +
+            'Im Zweifel nicht zuordnen.\n' +
+            'NOT_OFFERED = der Kunde nennt ein konkretes Thema, Produkt, Land, eine bestimmte Sprache oder ein Coaching, das nicht eindeutig einem Coaching oben entspricht ' +
+            '(z. B. "Mango", "Malaysia", "Malayalam", "Yoga-Kurs", "Kochen").\n' +
             'UNKNOWN = die Nachricht nennt nichts Konkretes (Begrüßung, "was habt ihr?", Fragen nach allen Angeboten, Smalltalk) oder mehrere Coachings.\n' +
             `\nAntworte AUSSCHLIESSLICH mit genau einem Code: ${codes.join(', ')}, NOT_OFFERED oder UNKNOWN. Keine anderen Wörter.`,
         },
@@ -154,7 +167,10 @@ async function classifyPaidCustomer(text, ownedNames) {
             'Der Bot hat ihm seinen Gruppenlink geschickt und gefragt, ob er ein weiteres Coaching möchte. ' +
             'Ordne seine neue Nachricht (Deutsch, Englisch, Urdu/Hindi in lateinischer Schrift möglich) einem Code zu:\n' +
             options +
-            '\nNEW = er möchte ein weiteres/neues Coaching oder eine neue Gruppe, nennt aber keins (auch "ja" auf die Frage)\n' +
+'\nWICHTIG: Ordne ein Coaching NUR zu, wenn der Kunde genau dieses Coaching meint – über den Namen, ein Stichwort, einen Tippfehler oder eine Übersetzung davon. ' +
+            'Ein konkretes Unterthema, das nicht in den Stichwörtern steht (z. B. eine bestimmte Sprache wie "Malayalam" oder "Französisch", eine bestimmte Sportart, ein Land, ein Produkt), ist KEIN Treffer. ' +
+            'Im Zweifel nicht zuordnen.\n' +
+            'NEW = er möchte ein weiteres/neues Coaching oder eine neue Gruppe, nennt aber keins eindeutig (auch "ja" auf die Frage, oder ein Thema, das zu keinem Coaching passt)\n' +
             'LINK = er fragt nach seinem Link, hat Probleme beim Beitreten oder will Zugang zu seiner Gruppe\n' +
             `UNKNOWN = alles andere\nAntworte AUSSCHLIESSLICH mit genau einem Code: ${codes.join(', ')}, NEW, LINK oder UNKNOWN.`,
         },
@@ -183,4 +199,4 @@ async function detectCoaching(text, { useAI = true } = {}) {
   return code === 'UNKNOWN' ? { id: null, source: 'ai' } : { id: code, source: 'ai' };
 }
 
-module.exports = { detectCoaching, classifyPaidCustomer, keywordMatches, normalize, editDistance, isOnlyGreeting, isOnlyThanks, isYes, wantsChange };
+module.exports = { detectCoaching, classifyPaidCustomer, keywordMatches, normalize, editDistance, isOnlyGreeting, isOnlyThanks, isYes, isNo, isConfirm, wantsChange };

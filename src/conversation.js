@@ -14,7 +14,7 @@ const msgs = require('./messages');
 const customers = require('./customers');
 const payments = require('./payments');
 const { getCoaching } = require('./config');
-const { detectCoaching, classifyPaidCustomer, keywordMatches, isOnlyGreeting, isOnlyThanks, isYes, wantsChange } = require('./coaching-detect');
+const { detectCoaching, classifyPaidCustomer, keywordMatches, isOnlyGreeting, isOnlyThanks, isYes, isNo, isConfirm, wantsChange } = require('./coaching-detect');
 const alerts = require('./alerts');
 const settings = require('./settings');
 const db = require('./storage/db');
@@ -78,6 +78,25 @@ async function sendGroupLink(customer, payment, { again = false } = {}) {
 }
 
 // ---------- flow ----------
+
+/** The AI (not a keyword) recognised a coaching: ask the customer to confirm before sending the price. */
+async function confirmGuess(customer, coachingId) {
+  customer.stage = STAGES.CONFIRM_COACHING;
+  customer.pendingCoachingId = coachingId;
+  customers.save(customer);
+  return reply(customer, msgs.confirmCoaching(getCoaching(coachingId)));
+}
+
+/** Customer picked a coaching: their own one again → link; a new one → price. */
+function chooseCoaching(customer, id) {
+  const owned = payments.verifiedFor(customer.jid, id);
+  if (owned) {
+    customer.stage = STAGES.VERIFIED;
+    customers.save(customer);
+    return sendGroupLink(customer, owned, { again: true });
+  }
+  return startCoaching(customer, getCoaching(id));
+}
 
 async function startCoaching(customer, coaching) {
   customer.coachingId = coaching.id;
@@ -165,20 +184,16 @@ async function handleMessage(msg) {
         customers.save(customer);
         return reply(customer, msgs.askAnotherCoaching());
       };
-      const chooseCoaching = (id) => {
-        const owned = payments.verifiedFor(customer.jid, id);
-        return owned ? sendGroupLink(customer, owned, { again: true }) : startCoaching(customer, getCoaching(id)); // new one = new purchase
-      };
       // 1. rules first: a coaching name, "new group"/"another", "yes" (answer to our offer), "thanks"
       const hits = keywordMatches(text);
-      if (hits.length === 1) return chooseCoaching(hits[0]);
+      if (hits.length === 1) return chooseCoaching(customer, hits[0]);
       if (wantsChange(text) || isYes(text)) return askAnother();
       if (isOnlyThanks(text)) return reply(customer, msgs.youreWelcome());
       if (isOnlyGreeting(text)) return sendGroupLink(customer, paid, { again: true });
       // 2. AI fallback for everything else — it may only return a code, the reply stays a fixed text
       const owned = payments.forCustomer(customer.jid).filter((p) => p.status === payments.STATUS.VERIFIED).map((p) => getCoaching(p.coachingId)?.name).filter(Boolean);
       const intent = await classifyPaidCustomer(text, [...new Set(owned)]);
-      if (getCoaching(intent)) return chooseCoaching(intent);
+      if (getCoaching(intent)) return payments.verifiedFor(customer.jid, intent) ? chooseCoaching(customer, intent) : confirmGuess(customer, intent);
       if (intent === 'NEW') return askAnother();
       return sendGroupLink(customer, paid, { again: true });
     }
@@ -205,29 +220,40 @@ async function handleMessage(msg) {
       return reply(customer, msgs.remindScreenshot(current));
     }
 
+    case STAGES.CONFIRM_COACHING: {
+      const pending = getCoaching(customer.pendingCoachingId);
+      const hits = keywordMatches(text);
+      if (hits.length === 1) return chooseCoaching(customer, hits[0]); // names a coaching clearly
+      if (pending && isConfirm(text)) return chooseCoaching(customer, pending.id);
+      customer.stage = STAGES.ASK_COACHING;
+      customer.pendingCoachingId = null;
+      customers.save(customer);
+      if (!text || isNo(text)) return reply(customer, msgs.afterNo());
+      return handleAskStage(customer, text, false); // something else → treat as a new answer
+    }
+
     case STAGES.NEW:
     case STAGES.ASK_COACHING:
-    default: {
-      const isFirst = customer.stage === STAGES.NEW;
-      const { id, notOffered } = text ? await detectCoaching(text) : { id: null };
-      // Already paid for that coaching → just send that link again (no second payment).
-      const owned = id && payments.verifiedFor(customer.jid, id);
-      if (owned) {
-        customer.stage = STAGES.VERIFIED;
-        customers.save(customer);
-        return sendGroupLink(customer, owned, { again: true });
-      }
-      if (id) return startCoaching(customer, getCoaching(id));
-      // Not recognised: never list the coachings, but don't repeat the exact same question either.
-      customer.stage = STAGES.ASK_COACHING;
-      customer.askCount = isFirst ? 0 : (customer.askCount || 0) + 1;
-      customers.save(customer);
-      if (isFirst) return reply(customer, msgs.welcome());
-      if (notOffered) return reply(customer, msgs.notOffered());
-      const variants = [msgs.askCoaching, msgs.askCoachingHint, msgs.askCoachingHelp];
-      return reply(customer, variants[(customer.askCount - 1) % variants.length]());
-    }
+    default:
+      return handleAskStage(customer, text, customer.stage === STAGES.NEW);
   }
+}
+
+/** Customer hasn't chosen a coaching yet. Never lists the coachings. */
+async function handleAskStage(customer, text, isFirst) {
+  const { id, notOffered, source } = text ? await detectCoaching(text) : { id: null };
+  // Already paid for that coaching → just send that link again (no second payment).
+  if (id && payments.verifiedFor(customer.jid, id)) return chooseCoaching(customer, id);
+  if (id && source === 'ai') return confirmGuess(customer, id); // AI guess → "Do you mean …?"
+  if (id) return startCoaching(customer, getCoaching(id));
+  // Not recognised: never list the coachings, but don't repeat the exact same question either.
+  customer.stage = STAGES.ASK_COACHING;
+  customer.askCount = isFirst ? 0 : (customer.askCount || 0) + 1;
+  customers.save(customer);
+  if (isFirst) return reply(customer, msgs.welcome());
+  if (notOffered) return reply(customer, msgs.notOffered());
+  const variants = [msgs.askCoaching, msgs.askCoachingHint, msgs.askCoachingHelp];
+  return reply(customer, variants[(customer.askCount - 1) % variants.length]());
 }
 
 // Messages from the same person are handled strictly one after another.

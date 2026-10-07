@@ -185,7 +185,7 @@ function mount(app) {
 
   // ---- Chats ----
   const STAGE_INFO = {
-    new: 'neu', ask_coaching: 'wählt Coaching', awaiting_screenshot: 'wartet auf Beleg', in_review: 'in Prüfung', verified: 'freigeschaltet',
+    new: 'neu', ask_coaching: 'wählt Coaching', confirm_coaching: 'bestätigt Coaching', awaiting_screenshot: 'wartet auf Beleg', in_review: 'in Prüfung', verified: 'freigeschaltet',
   };
   const chatView = (m) => ({
     id: m.id, at: m.at, direction: m.direction, text: m.text,
