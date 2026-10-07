@@ -6,7 +6,8 @@
 
 const log = require('../log');
 
-const TIMEOUT_MS = 60000;
+const TIMEOUT_MS = 60000; // writes and files
+const LOAD_TIMEOUT_MS = 180000; // reading a big tab (e.g. the WhatsApp session) can take a while
 
 function createSheetsBackend({ url, secret }) {
   url = String(url || '').trim();
@@ -14,7 +15,7 @@ function createSheetsBackend({ url, secret }) {
   if (!url) throw new Error('SHEET_WEBHOOK_URL is not set');
   if (!secret) throw new Error('SHEET_SECRET is not set');
 
-  async function call(action, payload = {}, attempts = 3) {
+  async function call(action, payload = {}, attempts = 3, timeoutMs = TIMEOUT_MS) {
     let lastErr;
     for (let i = 1; i <= attempts; i++) {
       try {
@@ -23,7 +24,7 @@ function createSheetsBackend({ url, secret }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ secret, action, ...payload }),
           redirect: 'follow', // Apps Script answers via a 302 to googleusercontent.com
-          signal: AbortSignal.timeout(TIMEOUT_MS),
+          signal: AbortSignal.timeout(timeoutMs),
         });
         const text = await res.text();
         let json;
@@ -48,8 +49,17 @@ function createSheetsBackend({ url, secret }) {
 
   return {
     name: 'google-sheets',
+    // One request per tab, in parallel: smaller answers, and one slow tab doesn't block the others.
     async load(tables) {
-      return (await call('load', { tables })).data;
+      const parts = await Promise.all(
+        tables.map(async (table) => {
+          const started = Date.now();
+          const rows = (await call('load', { tables: [table] }, 3, LOAD_TIMEOUT_MS)).data[table] || [];
+          log.info(`Loaded sheet tab "${table}": ${rows.length} rows in ${((Date.now() - started) / 1000).toFixed(1)}s`);
+          return [table, rows];
+        })
+      );
+      return Object.fromEntries(parts);
     },
     async write(ops) {
       await call('write', { ops });
