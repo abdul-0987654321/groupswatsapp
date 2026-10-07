@@ -12,7 +12,7 @@ const vm = require('vm');
 function createFakeSpreadsheet() {
   const sheets = new Map();
   class Sheet {
-    constructor(name) { this.name = name; this.rows = []; }
+    constructor(name) { this.name = name; this.rows = []; this.extraRows = 0; this.frozen = 0; }
     getLastRow() { return this.rows.length; }
     getLastColumn() { return this.rows.reduce((m, r) => Math.max(m, r.length), 0); }
     getRange(r, c, nr = 1, nc = 1) {
@@ -41,8 +41,18 @@ function createFakeSpreadsheet() {
         setNumberFormat() { return this; },
       };
     }
-    setFrozenRows() {}
-    deleteRow(n) { this.rows.splice(n - 1, 1); }
+    // Like Google: a tab has a fixed number of rows (grown by appends) and frozen header rows,
+    // and refuses to delete every non-frozen row.
+    getMaxRows() { return Math.max(this.extraRows + this.rows.length, 1); }
+    insertRowsAfter(_after, n) { this.extraRows = (this.extraRows || 0) + n; }
+    setFrozenRows(n) { this.frozen = n; }
+    deleteRows(start, n) {
+      if (this.getMaxRows() - n <= (this.frozen || 0)) throw new Error('Sorry, it is not possible to delete all non-frozen rows.');
+      const fromData = Math.max(0, Math.min(n, this.rows.length - (start - 1)));
+      this.rows.splice(start - 1, fromData);
+      this.extraRows -= n - fromData;
+    }
+    deleteRow(n) { this.deleteRows(n, 1); }
   }
   return {
     sheets,

@@ -203,6 +203,17 @@ function senderFromReference(reference) {
     .join(' ');
 }
 
+// Bank transfer channel words ("Raast Ft Raast", "IBFT", "Fund Transfer") are never a person's name.
+const CHANNEL_WORDS = new Set([
+  'raast', 'ft', 'ibft', 'p2p', 'fund', 'funds', 'transfer', 'ebpl', 'ibt', 'inward', 'outward', 'credit', 'debit',
+  'online', 'mobile', 'banking', 'payment', 'sepa', 'instant', 'echtzeit', 'ueberweisung', 'überweisung', 'trf', 'txn',
+]);
+function realName(name) {
+  const words = normName(name).filter((w) => w.length > 1); // "P2P" → "p p"
+  if (!words.length || words.every((w) => CHANNEL_WORDS.has(w))) return null;
+  return name;
+}
+
 const normRef = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 /** Same reference / transaction ID? Long IDs may differ by 1–2 characters when the AI misreads a digit. */
@@ -301,7 +312,7 @@ function verify(extracted, ctx) {
   }
 
   // 5. Sender name (from receipt, else from reference)
-  const senderName = e.senderName || senderFromReference(e.reference) || null;
+  const senderName = realName(e.senderName) || senderFromReference(e.reference) || null;
 
   // 6. Duplicate: same image, or same reference + amount + date + sender
   let duplicateOf = null;

@@ -167,8 +167,18 @@ function remove_(table, key, keys) {
   var wanted = {};
   keys.forEach(function (k) { wanted[String(k)] = true; });
   var values = sh.getRange(2, keyCol + 1, lastRow - 1, 1).getDisplayValues();
-  for (var i = values.length - 1; i >= 0; i--) {
-    if (wanted[values[i][0]]) sh.deleteRow(i + 2);
+  // Google refuses to delete ALL non-frozen rows of a tab ("Sorry, it is not possible to delete
+  // all non-frozen rows"). That happens when e.g. the whole WhatsApp session is wiped and the tab
+  // has no spare empty rows below the data. Keep a few empty rows at the bottom so it never happens.
+  if (sh.getMaxRows() - lastRow < 5) sh.insertRowsAfter(sh.getMaxRows(), 5);
+  // Delete from the bottom up, whole blocks at once (much faster than row by row).
+  var i = values.length - 1;
+  while (i >= 0) {
+    if (!wanted[values[i][0]]) { i--; continue; }
+    var end = i;
+    while (i - 1 >= 0 && wanted[values[i - 1][0]]) i--;
+    sh.deleteRows(i + 2, end - i + 1);
+    i--;
   }
 }
 

@@ -54,6 +54,8 @@ Gib NUR die Felder des JSON-Schemas zurück. Regeln:
 - reference: bei pakistanischen Apps auch "Purpose"/"Description"/"Message", falls vorhanden. Eine Transaktions-ID (TID, Transaction ID) NICHT als reference, sondern in reference nur, wenn kein Verwendungszweck existiert – dann im Format "TID <nummer>".
 - bankApp: Name der Bank oder App, die den Beleg erzeugt hat (z. B. "Sparkasse", "Volksbank", "Revolut", "MLP", "ING", "Easypaisa", "JazzCash"), sonst null.
 - Pakistanische Belege: "Sent to", "Destination Acc. Title", "To", "Receiver" = EMPFÄNGER; "Sent by", "Source Acc. Title", "From", "Funding Source" = ABSENDER. Raast-IBAN/Kontonummer unter "Sent to"/"Destination" ist recipientIban.
+- Wörter für den Überweisungsweg wie "RAAST", "IBFT", "FT", "P2P", "Fund Transfer", "EBPL", "SEPA", "Echtzeitüberweisung" sind NIE ein Name – nicht als senderName/recipientName verwenden.
+- Gutschrift-/Kontoauszugsbelege ("Amount Credited", "Gutschrift", Buchungstext mit zwei Namen/IBANs): das Konto, dem gutgeschrieben wurde, ist der EMPFÄNGER; der andere Name in der Buchungszeile ist der ABSENDER.
 - Transaktions-IDs, Referenznummern und Kontonummern Zeichen für Zeichen exakt abschreiben – keine Ziffer doppelt oder auslassen.
 - Erfinde nichts. Unleserliche oder fehlende Felder → null.
 

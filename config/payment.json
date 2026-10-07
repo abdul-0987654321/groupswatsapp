@@ -1,5 +1,5 @@
 {
-  "mode": "test",
+  "mode": "live",
   "live": {
     "recipient": "Ilyas Lang",
     "accountType": "iban",

@@ -81,6 +81,9 @@ test('sender name: from receipt, else from the reference text', () => {
   assert.strictEqual(senderFromReference('Sport Coaching'), null);
   assert.strictEqual(run({ senderName: null }).senderName, 'Max Muster');
   assert.strictEqual(run({ senderName: 'Erika Muster' }).senderName, 'Erika Muster');
+  // bank transfer words are not a name (real Bank Al Habib "Amount Credited" receipt)
+  assert.strictEqual(run({ senderName: 'Raast Ft Raast', reference: 'Saima Arshad, Raast' }).senderName, 'Saima Arshad');
+  assert.strictEqual(run({ senderName: 'IBFT', reference: null }).senderName, null);
 });
 
 test('duplicates: same image hash, or same reference + amount + date + sender', () => {

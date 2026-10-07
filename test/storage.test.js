@@ -63,6 +63,27 @@ test('records survive a "restart": write via Apps Script, reload into a fresh pr
   }
 });
 
+test('wiping the whole WhatsApp session (disconnect) works even when the tab has no spare rows', async () => {
+  const app = await startFakeWebApp();
+  try {
+    const { db, auth } = freshDb();
+    await db.init(createSheetsBackend({ url: app.url, secret: app.secret }));
+    for (let i = 1; i <= 30; i++) db.put('session', { key: `pre-key-${i}`, value: `{"a":${i}}` });
+    db.put('session', { key: 'creds', value: '{"me":{"id":"1"}}' });
+    await db.flush();
+    assert.strictEqual(app.ss.getSheetByName('session').frozen, 1);
+    await auth.clearSession();
+    assert.strictEqual(db.status().lastFlushError, null);
+    assert.strictEqual(app.ss.getSheetByName('session').rows.length, 1, 'only the header row is left');
+    // logging in again afterwards saves normally
+    db.put('session', { key: 'creds', value: '{"me":{"id":"2"}}' });
+    await db.flush();
+    assert.strictEqual(db.status().lastFlushError, null);
+  } finally {
+    await app.close();
+  }
+});
+
 test('Baileys auth state round-trips Buffers through the sheet', async () => {
   const app = await startFakeWebApp();
   try {
