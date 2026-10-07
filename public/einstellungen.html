@@ -95,7 +95,7 @@ async function load() {
 
   const acc = d.accounts || [];
   document.getElementById('payInfo').innerHTML = `
-    <p style="margin-top:0">${d.mode === 'test' ? '<span class="pill red">Testmodus</span>' : '<span class="pill green">Live-Modus</span>'} · Währung <b>${esc(d.currency)}</b></p>
+    <p style="margin-top:0">${d.mode === 'test' ? '<span class="pill red">Testmodus</span>' : d.mode === 'trial' ? '<span class="pill red">Testpreise</span>' : '<span class="pill green">Live-Modus</span>'} · Währung <b>${esc(d.currency)}</b></p>
     <dl class="kv">
       <dt>Konto (sehen die Kunden)</dt><dd>${esc(d.account.recipient)} · ${esc(d.account.account)}${d.account.bankName ? ' · ' + esc(d.account.bankName) : ''}</dd>
       ${acc.length > 1 ? `<dt>Ebenfalls akzeptiert</dt><dd>${acc.slice(1).map((a) => `${esc(a.recipient)} · ${esc(a.account)}${a.bankName ? ' · ' + esc(a.bankName) : ''}`).join('<br>')}</dd>` : ''}

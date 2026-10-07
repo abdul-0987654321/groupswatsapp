@@ -95,6 +95,9 @@
     if (s.mode === 'test') {
       strips.push(`<div class="strip test">TESTMODUS – Kunden sehen das Testkonto (${esc(s.account.recipient)}, ${esc(s.account.account)}${s.account.bankName ? ', ' + esc(s.account.bankName) : ''}) und Testpreise in ${esc(s.currency)}.</div>`);
     }
+    if (s.mode === 'trial') {
+      strips.push(`<div class="strip test">TESTPREISE – echtes Konto (${esc(s.account.recipient)}), aber Testpreise 1–4 ${esc(s.currency)}. Für echte Preise in config/payment.json "mode": "live" setzen.</div>`);
+    }
     if (!botEnabled) strips.push('<div class="strip paused">⏸ Bot pausiert – er antwortet niemandem. Nachrichten werden gespeichert (siehe Chats). <button type="button" class="primary" id="resumeBtn">Bot einschalten</button></div>');
     if (s.storageError) strips.push(`<div class="strip test">Google Sheet: ${esc(s.storageError)}</div>`);
     const box = document.getElementById('strips');
