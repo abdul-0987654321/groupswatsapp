@@ -82,6 +82,7 @@ async function sendGroupLink(customer, payment, { again = false } = {}) {
 async function startCoaching(customer, coaching) {
   customer.coachingId = coaching.id;
   customer.askCount = 0;
+  customer.priceSentAt = new Date().toISOString(); // a matching payment can't be older than this
   customer.stage = STAGES.AWAITING_SCREENSHOT;
   customers.save(customer);
   await reply(customer, msgs.price(coaching));

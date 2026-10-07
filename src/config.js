@@ -37,6 +37,8 @@ function loadPayment() {
     accounts: Object.freeze([toAccount(profile), ...extra]),
     currency: String(profile.currency).toUpperCase(),
     prices: profile.prices || null,
+    // time zone of the receipts (bank apps print local time): Pakistan for the test account, Germany live
+    timezone: profile.timezone || (mode === 'test' ? 'Asia/Karachi' : 'Europe/Berlin'),
   };
 }
 
@@ -45,6 +47,7 @@ const MODE = payment.mode;
 const BANK = payment.bank; // shown to customers
 const ACCOUNTS = payment.accounts; // all accepted recipient accounts
 const CURRENCY = payment.currency;
+const TIMEZONE = payment.timezone;
 
 function loadCoachings() {
   const raw = JSON.parse(fs.readFileSync(COACHINGS_FILE, 'utf8'));
@@ -69,6 +72,7 @@ module.exports = {
   BANK,
   ACCOUNTS,
   CURRENCY,
+  TIMEZONE,
   coachings,
   getCoaching: (id) => coachings.find((c) => c.id === id) || null,
 };

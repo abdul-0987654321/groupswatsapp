@@ -4,12 +4,13 @@
  * Never rejects automatically: any failed check means a human looks at it.
  */
 
-const { BANK, ACCOUNTS, CURRENCY, coachings } = require('./config');
+const { BANK, ACCOUNTS, CURRENCY, TIMEZONE, coachings } = require('./config');
 const { formatMoney, normalizeCurrency } = require('./money');
 const { isNearDuplicate } = require('./image-hash');
 
 const MAX_AGE_DAYS = 7;
-const TZ = 'Europe/Berlin';
+const TZ = TIMEZONE; // time zone in which receipts print their date/time
+const TIME_TOLERANCE_MS = 15 * 60 * 1000; // clocks, rounding, time-zone quirks
 
 // ---------- helpers ----------
 
@@ -91,7 +92,7 @@ function nameMatches(printed) {
   return got.length > 0 && ACCOUNTS.some((acc) => normName(acc.recipient).every((w) => got.includes(w)));
 }
 
-/** Calendar date (YYYY-MM-DD) of an instant in Berlin time. */
+/** Calendar date (YYYY-MM-DD) of an instant in the receipt time zone (Berlin live, Karachi in test mode). */
 function berlinDate(d) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
 }
@@ -137,6 +138,37 @@ function resolveDate(printed, receivedAt) {
   function wrap(date) {
     return date ? { date, relative: false } : null;
   }
+}
+
+/** "12:21", "12:21 PM", "1:05 pm", "17.14" → [hours, minutes] (24h) or null */
+function parseTime(t) {
+  const m = String(t || '').match(/(\d{1,2})[:.](\d{2})\s*([ap]\.?\s?m\.?)?/i);
+  if (!m) return null;
+  let h = Number(m[1]);
+  const min = Number(m[2]);
+  const ampm = m[3] ? m[3].toLowerCase()[0] : null;
+  if (ampm === 'p' && h < 12) h += 12;
+  if (ampm === 'a' && h === 12) h = 0;
+  return h < 24 && min < 60 ? [h, min] : null;
+}
+
+function tzOffsetMs(utcMs, tz) {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(new Date(utcMs));
+  const g = (k) => Number(parts.find((p) => p.type === k).value);
+  return Date.UTC(g('year'), g('month') - 1, g('day'), g('hour'), g('minute'), g('second')) - utcMs;
+}
+
+/** Local date + time printed on the receipt → exact instant (ms). */
+function receiptInstant(ymd, time) {
+  const hm = parseTime(time);
+  if (!ymd || !hm) return null;
+  const [y, m, d] = ymd.split('-').map(Number);
+  const guess = Date.UTC(y, m - 1, d, hm[0], hm[1]);
+  return guess - tzOffsetMs(guess, TZ);
+}
+
+function fmtTime(ms) {
+  return new Date(ms).toLocaleString('de-DE', { timeZone: TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
 function daysBetween(a, b) {
@@ -235,6 +267,21 @@ function verify(extracted, ctx) {
   }
   add('date', `Datum innerhalb von ${MAX_AGE_DAYS} Tagen`, !dateDetail, dateDetail);
 
+  // 4a. Time: the payment can't be older than the moment the bot sent the account details
+  //     (otherwise it's an old receipt) and can't be in the future.
+  const paidAt = !dateDetail && resolved ? receiptInstant(resolved.date, e.time) : null;
+  if (paidAt != null) {
+    const received = Date.parse(ctx.receivedAt || new Date().toISOString());
+    const asked = ctx.priceSentAt ? Date.parse(ctx.priceSentAt) : null;
+    let timeDetail = '';
+    if (asked && paidAt < asked - TIME_TOLERANCE_MS) {
+      timeDetail = `Zahlung um ${fmtTime(paidAt)} war vor der Anfrage beim Bot (Bankdaten gesendet ${fmtTime(asked)}) – möglicherweise ein alter Beleg`;
+    } else if (paidAt > received + TIME_TOLERANCE_MS) {
+      timeDetail = `Uhrzeit liegt in der Zukunft (${fmtTime(paidAt)}, Beleg erhalten ${fmtTime(received)})`;
+    }
+    add('time', 'Uhrzeit passt zur Anfrage', !timeDetail, timeDetail);
+  }
+
   // 4b. Transfer really completed (not pending/failed) and nothing looks edited
   add('completed', 'Überweisung ausgeführt', e.transferCompleted !== false, e.transferCompleted === false ? 'Überweisung nicht abgeschlossen (z. B. ausstehend oder fehlgeschlagen)' : '');
   if (e.suspicious === true) {
@@ -299,4 +346,4 @@ function fmtDateTime(iso) {
   return iso ? new Date(iso).toLocaleString('de-DE', { timeZone: TZ, dateStyle: 'short', timeStyle: 'short' }) : '?';
 }
 
-module.exports = { verify, resolveDate, ibanMatches, accountMatches, nameMatches, senderFromReference, berlinDate, MAX_AGE_DAYS };
+module.exports = { verify, receiptInstant, parseTime, resolveDate, ibanMatches, accountMatches, nameMatches, senderFromReference, berlinDate, MAX_AGE_DAYS };

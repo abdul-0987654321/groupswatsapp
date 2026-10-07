@@ -6,7 +6,8 @@
     "account": "DE85 5505 0120 1200 6021 16",
     "bic": "MALADE51MNZ",
     "bankName": "Sparkasse Mainz",
-    "currency": "EUR"
+    "currency": "EUR",
+    "timezone": "Europe/Berlin"
   },
   "test": {
     "recipient": "Abdul Raheem Qureshi",
@@ -19,6 +20,7 @@
       "C2": 2,
       "C3": 3,
       "MAIN": 4
-    }
+    },
+    "timezone": "Asia/Karachi"
   }
 }

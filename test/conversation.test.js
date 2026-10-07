@@ -14,7 +14,7 @@ const PRICE_C2 =
 
 const goodReceipt = (amount, extra = {}) => ({
   isPaymentReceipt: true, recipientName: 'Ilyas Lang', recipientIban: 'DE85 5505 0120 1200 6021 16', amount, currency: 'EUR',
-  date: 'Heute', time: '12:00', senderName: 'Max Muster', reference: 'Max Muster Coaching', bankApp: 'Sparkasse', ...extra,
+  date: 'Heute', time: null, senderName: 'Max Muster', reference: 'Max Muster Coaching', bankApp: 'Sparkasse', ...extra,
 });
 // Distinct random-noise images (deterministic per seed), so they never look like duplicates.
 const img = (seed) => {
@@ -408,4 +408,21 @@ test('unknown coachings ("mango", "Malaysia") get a "not offered" reply; vague m
   assert.ok(new Set(vague).size >= 3, 'questions vary: ' + vague.join(' | '));
   assertNoList(h.sent);
   assert.match((await h.say(h.textMsg(jid, 'sport')))[0], /^The Sport Coaching costs/);
+});
+
+test('payment and customer numbers are never reused after "Delete chat" (old screenshots must not reappear)', async () => {
+  const queue = [goodReceipt(75), goodReceipt(75, { reference: 'b' })];
+  const h = await createHarness({ receipts: { next: () => queue.shift() } });
+  const jid = h.phoneJid(80);
+  await h.say(h.textMsg(jid, 'Sport'));
+  await h.say(h.imageMsg(jid, await img(80)));
+  const first = h.payments.all()[0];
+  const firstCustomer = h.customers.get(jid).id;
+  h.customers.deleteCustomer(jid);
+  await h.say(h.textMsg(jid, 'Sport'));
+  await h.say(h.imageMsg(jid, await img(81)));
+  const second = h.payments.all()[0];
+  assert.notStrictEqual(second.id, first.id);
+  assert.notStrictEqual(h.customers.get(jid).id, firstCustomer);
+  assert.ok(h.customers.get(jid).priceSentAt, 'bot remembers when it sent the bank details');
 });

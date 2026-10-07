@@ -39,12 +39,9 @@ function findByLid(lid) {
 }
 
 function nextCustomerNumber() {
-  let max = 1000;
-  for (const c of db.all('customers')) {
-    const n = Number(String(c.id || '').replace(/\D/g, ''));
-    if (n > max) max = n;
-  }
-  return 'K-' + (max + 1);
+  let max = 0;
+  for (const c of db.all('customers')) max = Math.max(max, Number(String(c.id || '').replace(/\D/g, '')) || 0);
+  return 'K-' + require('./settings').nextNumber('K', max);
 }
 
 /** Returns the (possibly new) customer for an incoming message and records name/addressing changes. */

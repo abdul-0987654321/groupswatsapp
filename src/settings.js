@@ -22,6 +22,8 @@ const VALIDATE = {
     return [...new Set(list)];
   },
   botEnabled: (v) => Boolean(v), // false = bot paused: messages are saved, but no replies
+  // last used customer/payment numbers, so a number is never given out twice (even after deleting)
+  counters: (v) => ({ K: Number(v?.K) || 0, Z: Number(v?.Z) || 0 }),
   // salted scrypt hash, written only by auth.changePassword (never via the public settings API)
   dashboardPassword: (v) => {
     if (!v || typeof v.salt !== 'string' || typeof v.hash !== 'string') throw new Error('Ungültiges Passwort-Format');
@@ -46,8 +48,16 @@ function set(key, value) {
 // Settings the dashboard may read and change through /api/settings.
 const PUBLIC = ['botEnabled', 'botLanguage', 'adminNumbers', 'alertOnReview', 'alertOnVerified'];
 
+/** Next number for "K" (customers) or "Z" (payments); never reuses a number, even after deletes. */
+function nextNumber(prefix, existingMax) {
+  const counters = { K: 0, Z: 0, ...(get('counters') || {}) };
+  const n = Math.max(1000, counters[prefix] || 0, existingMax || 0) + 1;
+  set('counters', { ...counters, [prefix]: n });
+  return n;
+}
+
 function all() {
   return Object.fromEntries(PUBLIC.map((k) => [k, get(k)]));
 }
 
-module.exports = { get, set, all, PUBLIC };
+module.exports = { get, set, all, PUBLIC, nextNumber };

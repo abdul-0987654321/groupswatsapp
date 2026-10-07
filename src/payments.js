@@ -22,12 +22,9 @@ const STATUS = {
 const now = () => new Date().toISOString();
 
 function nextPaymentId() {
-  let max = 1000;
-  for (const p of db.all('payments')) {
-    const n = Number(String(p.id).replace(/\D/g, ''));
-    if (n > max) max = n;
-  }
-  return 'Z-' + (max + 1);
+  let max = 0;
+  for (const p of db.all('payments')) max = Math.max(max, Number(String(p.id).replace(/\D/g, '')) || 0);
+  return 'Z-' + require('./settings').nextNumber('Z', max);
 }
 
 function all() {
@@ -61,7 +58,7 @@ async function processReceipt({ customer, coaching, buffer, mimeType, receivedAt
   let extracted = null;
   if (readRes.status === 'fulfilled') {
     extracted = readRes.value;
-    result = verify(extracted, { coaching, receivedAt, imageHash: fp.imageHash, thumbnail: fp.thumbnail, previousPayments });
+    result = verify(extracted, { coaching, receivedAt, priceSentAt: customer.priceSentAt, imageHash: fp.imageHash, thumbnail: fp.thumbnail, previousPayments });
   } else {
     log.error(`Reading receipt ${id} failed: ${readRes.reason?.message}`);
     result = {

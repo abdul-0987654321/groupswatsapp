@@ -171,7 +171,8 @@ function mount(app) {
     try {
       const f = await getScreenshot(p.screenshotFileId);
       res.setHeader('Content-Type', f.mimeType || p.mimeType || 'image/jpeg');
-      res.setHeader('Cache-Control', 'private, max-age=3600');
+      res.setHeader('Cache-Control', 'private, no-cache'); // always revalidate: an URL must never show an old picture
+      res.setHeader('ETag', `"${p.screenshotFileId}"`);
       res.send(f.buffer);
     } catch (err) {
       res.status(502).send(`Screenshot konnte nicht geladen werden: ${err.message}`);
@@ -245,7 +246,8 @@ function mount(app) {
     try {
       const f = await getScreenshot(m.fileId);
       res.setHeader('Content-Type', f.mimeType || m.mimeType || 'image/jpeg');
-      res.setHeader('Cache-Control', 'private, max-age=3600');
+      res.setHeader('Cache-Control', 'private, no-cache'); // always revalidate: an URL must never show an old picture
+      res.setHeader('ETag', `"${m.fileId}"`);
       res.send(f.buffer);
     } catch (err) {
       res.status(502).send(`Datei konnte nicht geladen werden: ${err.message}`);

@@ -61,6 +61,30 @@ test('right name but a different (masked) account number → review, not auto-co
   assert.deepStrictEqual(verify({ ...receipt, recipientIban: null }, ctx).reasons, [], 'no number at all → name is enough');
 });
 
+test('time check in Pakistan time: receipt older than the bot request → review; normal flow and future times', () => {
+  for (const k of Object.keys(require.cache)) if (k.includes('/src/')) delete require.cache[k];
+  const { verify, parseTime } = require('../src/verify');
+  const { getCoaching, TIMEZONE } = require('../src/config');
+  assert.strictEqual(TIMEZONE, 'Asia/Karachi');
+  assert.deepStrictEqual(parseTime('12:21 PM'), [12, 21]);
+  assert.deepStrictEqual(parseTime('1:05 pm'), [13, 5]);
+  assert.deepStrictEqual(parseTime('12:10 AM'), [0, 10]);
+  assert.deepStrictEqual(parseTime('17.14'), [17, 14]);
+  const r = { isPaymentReceipt: true, recipientName: 'Ali Raza', recipientIban: '03001234567', amount: 1, currency: 'PKR', date: '07 Oct 2026', senderName: 'X', reference: 'TID 1', bankApp: 'NayaPay' };
+  const coaching = getCoaching('C1');
+  // the real case: paid 12:21 PM, bank details sent 1:05 PM, screenshot at 1:11 PM (all Pakistan time)
+  const old = verify({ ...r, time: '12:21 PM' }, { coaching, receivedAt: '2026-10-07T13:11:00+05:00', priceSentAt: '2026-10-07T13:05:00+05:00', previousPayments: [] });
+  assert.deepStrictEqual(old.reasons, ['Zahlung um 07.10., 12:21 war vor der Anfrage beim Bot (Bankdaten gesendet 07.10., 13:05) – möglicherweise ein alter Beleg']);
+  // normal: details sent 12:50, paid 12:53, screenshot 12:55
+  assert.strictEqual(verify({ ...r, time: '12:53 PM' }, { coaching, receivedAt: '2026-10-07T12:55:00+05:00', priceSentAt: '2026-10-07T12:50:00+05:00', previousPayments: [] }).status, 'VERIFIED');
+  // a few minutes before the request is tolerated (clocks)
+  assert.strictEqual(verify({ ...r, time: '12:45 PM' }, { coaching, receivedAt: '2026-10-07T12:55:00+05:00', priceSentAt: '2026-10-07T12:50:00+05:00', previousPayments: [] }).status, 'VERIFIED');
+  // future
+  assert.match(verify({ ...r, time: '3:00 PM' }, { coaching, receivedAt: '2026-10-07T12:55:00+05:00', previousPayments: [] }).reasons[0], /^Uhrzeit liegt in der Zukunft/);
+  // no time on the receipt → only the date check
+  assert.strictEqual(verify({ ...r, time: null }, { coaching, receivedAt: '2026-10-07T13:11:00+05:00', priceSentAt: '2026-10-07T13:05:00+05:00', previousPayments: [] }).status, 'VERIFIED');
+});
+
 test.after(() => fs.rmSync(file, { force: true }));
 
 test('extra accepted accounts: payment to the second account (by number or name) passes', () => {

@@ -101,7 +101,7 @@ OpenAI (`gpt-4o-mini`) only reads the receipt fields. The decision is made in co
 - It is a payment receipt.
 - The recipient IBAN matches (spaces and masking are ignored) **or** the recipient name is "Ilyas Lang". A fully readable IBAN that is different always fails.
 - The amount equals the coaching price in EUR.
-- The payment date is within the last 7 days. "Heute", "Today" and "A few minutes ago" count as the day the WhatsApp message arrived.
+- The payment date is within the last 7 days, and, if the receipt shows a time, the payment is **not older than the moment the bot sent the bank details** to this customer (15 min tolerance) and not in the future. This catches old or reused receipts. Receipt times are read in the time zone set in `config/payment.json` (`Asia/Karachi` in test mode, `Europe/Berlin` live). "Heute", "Today" and "A few minutes ago" count as the day the WhatsApp message arrived.
 - It is not a duplicate: not the same file, not the same picture re-compressed with the same amount, and not the same reference + amount + date + sender.
 
 If every check passes, the payment is **VERIFIED** and the link is sent automatically. If any check fails, it goes to **NEEDS_REVIEW** with a German reason in **Offene Prüfungen**. Nothing is ever rejected automatically.
