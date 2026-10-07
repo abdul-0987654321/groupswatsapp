@@ -144,4 +144,9 @@ function latestVerified(jid) {
   return forCustomer(jid).find((p) => p.status === STATUS.VERIFIED) || null;
 }
 
-module.exports = { STATUS, all, get, forCustomer, processReceipt, decide, markLinkSent, latestVerified };
+/** The customer's verified payment for one specific coaching (they may own several). */
+function verifiedFor(jid, coachingId) {
+  return forCustomer(jid).find((p) => p.status === STATUS.VERIFIED && p.coachingId === coachingId) || null;
+}
+
+module.exports = { STATUS, all, get, forCustomer, processReceipt, decide, markLinkSent, latestVerified, verifiedFor };

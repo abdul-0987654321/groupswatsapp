@@ -110,7 +110,8 @@ test('full flow: verified receipt → link; writing again → same link, no rest
   ]);
   assert.strictEqual(h.customers.get(jid).stage, 'verified');
   assert.deepStrictEqual(await h.say(h.textMsg(jid, 'Hallo, ich finde den Link nicht')), [
-    'Du bist bereits freigeschaltet ✅ Hier ist dein Link zur Coaching-Gruppe: https://chat.whatsapp.com/TEST-SPORT',
+    'Du bist bereits für das Sport Coaching freigeschaltet ✅ Hier ist dein Link zur Coaching-Gruppe: https://chat.whatsapp.com/TEST-SPORT\n' +
+      'Möchtest du ein weiteres Coaching? Schreib mir einfach, welches.',
   ]);
   assertNoList(h.sent);
 });
@@ -244,16 +245,28 @@ test('mid-payment: "Hi" repeats the details, "I want to change group" asks again
   assert.match((await h.say(h.textMsg(jid, 'when?')))[0], /^You chose the Money Coaching \(80 €\)\./);
 });
 
-test('verified customer: same link again, change request offers another coaching, naming one starts a new purchase', async () => {
-  const queue = [goodReceipt(75)];
+test('verified customer: "Hi" → link again; "new group" → asks which coaching → new purchase; owned coaching → link, not a second payment', async () => {
+  const queue = [goodReceipt(75), goodReceipt(80, { reference: 'zweites' })];
   const h = await createHarness({ receipts: { next: () => queue.shift() } });
-  require('../src/config').getCoaching('C1').groupLink = 'https://chat.whatsapp.com/TEST-SPORT';
+  const config = require('../src/config');
+  config.getCoaching('C1').groupLink = 'https://chat.whatsapp.com/TEST-SPORT';
+  config.getCoaching('C2').groupLink = 'https://chat.whatsapp.com/TEST-MONEY';
+  require('../src/settings').set('botLanguage', 'en');
   const jid = h.phoneJid(19);
   await h.say(h.textMsg(jid, 'Sport'));
   await h.say(h.imageMsg(jid, await img(20)));
-  assert.match((await h.say(h.textMsg(jid, 'I want to change group')))[0], /^Du bist bereits für das Sport Coaching freigeschaltet ✅ Hier ist dein Link: https:\/\/chat\.whatsapp\.com\/TEST-SPORT\nMöchtest du zusätzlich/);
-  assert.match((await h.say(h.textMsg(jid, 'Money bitte')))[0], /^Das Money Coaching kostet 80 €/);
-  assert.strictEqual(h.customers.get(jid).stage, 'awaiting_screenshot');
+  // the real chat from testing
+  assert.match((await h.say(h.textMsg(jid, 'Hi')))[0], /^You are already unlocked for the Sport Coaching ✅ .*TEST-SPORT\nWould you like another coaching\?/);
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'i want to join a new group')), ['Sure! Which other coaching are you interested in? (Your current group link stays valid.)']);
+  // naming the coaching they already own → that link again, no second payment
+  assert.match((await h.say(h.textMsg(jid, 'sport')))[0], /^You are already unlocked for the Sport Coaching/);
+  assert.strictEqual(h.customers.get(jid).stage, 'verified');
+  // a different coaching → new purchase, then both links work
+  await h.say(h.textMsg(jid, 'another one please'));
+  assert.match((await h.say(h.textMsg(jid, 'money')))[0], /^The Money Coaching costs 80 €/);
+  assert.match((await h.say(h.imageMsg(jid, await img(21))))[0], /^Payment confirmed ✅ .*TEST-MONEY/);
+  assert.match((await h.say(h.textMsg(jid, 'sport link?')))[0], /TEST-SPORT/);
+  assert.match((await h.say(h.textMsg(jid, 'money link?')))[0], /TEST-MONEY/);
 });
 
 test('admin alerts: review and auto-verified payments are reported to the admin number', async () => {

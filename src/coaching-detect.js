@@ -74,6 +74,8 @@ function keywordMatches(text) {
 const CHANGE_WORDS = new Set([
   'change', 'switch', 'other', 'another', 'different', 'instead', 'wrong', 'cancel',
   'wechseln', 'wechsel', 'aendern', 'andere', 'anderes', 'anderen', 'tauschen', 'stattdessen', 'falsch', 'stornieren',
+  // "new group", "another coaching", "noch ein weiteres Coaching"
+  'new', 'more', 'additional', 'second', 'neu', 'neue', 'neues', 'neuen', 'weitere', 'weiteres', 'weiteren', 'zusaetzlich', 'zweites',
 ]);
 function wantsChange(text) {
   return tokens(text).some((t) => CHANGE_WORDS.has(t));

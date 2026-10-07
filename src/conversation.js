@@ -156,14 +156,16 @@ async function handleMessage(msg) {
         customers.save(customer);
         return reply(customer, msgs.askCoaching());
       }
-      // Naming a different coaching clearly = buying an additional one.
+      // Naming a coaching they don't own yet = buying an additional one.
       const hits = keywordMatches(text);
-      if (!media && hits.length === 1 && hits[0] !== paid.coachingId) return startCoaching(customer, getCoaching(hits[0]));
-      const coaching = getCoaching(paid.coachingId);
-      if (!media && wantsChange(text) && coaching?.groupLink) {
-        await reply(customer, msgs.alreadyVerifiedOther(coaching));
-        payments.markLinkSent(paid.id);
-        return;
+      if (!media && hits.length === 1 && !payments.verifiedFor(customer.jid, hits[0])) return startCoaching(customer, getCoaching(hits[0]));
+      if (!media && hits.length === 1) return sendGroupLink(customer, payments.verifiedFor(customer.jid, hits[0]), { again: true });
+      // "new group" / "another coaching" → ask which one (their existing links stay valid).
+      if (!media && wantsChange(text)) {
+        customer.stage = STAGES.ASK_COACHING;
+        customer.coachingId = null;
+        customers.save(customer);
+        return reply(customer, msgs.askAnotherCoaching());
       }
       return sendGroupLink(customer, paid, { again: true });
     }
@@ -195,6 +197,13 @@ async function handleMessage(msg) {
     default: {
       const isFirst = customer.stage === STAGES.NEW;
       const { id } = text ? await detectCoaching(text) : { id: null };
+      // Already paid for that coaching → just send that link again (no second payment).
+      const owned = id && payments.verifiedFor(customer.jid, id);
+      if (owned) {
+        customer.stage = STAGES.VERIFIED;
+        customers.save(customer);
+        return sendGroupLink(customer, owned, { again: true });
+      }
       if (id) return startCoaching(customer, getCoaching(id));
       customer.stage = STAGES.ASK_COACHING;
       customers.save(customer);
