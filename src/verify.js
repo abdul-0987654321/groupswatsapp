@@ -7,6 +7,7 @@
 const { BANK, ACCOUNTS, CURRENCY, TIMEZONE, coachings } = require('./config');
 const { formatMoney, normalizeCurrency } = require('./money');
 const { isNearDuplicate } = require('./image-hash');
+const { editDistance } = require('./coaching-detect');
 
 const MAX_AGE_DAYS = 7;
 const TZ = TIMEZONE; // time zone in which receipts print their date/time
@@ -204,6 +205,17 @@ function senderFromReference(reference) {
 
 const normRef = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
+/** Same reference / transaction ID? Long IDs may differ by 1–2 characters when the AI misreads a digit. */
+function sameRef(a, b) {
+  const x = normRef(a);
+  const y = normRef(b);
+  if (!x || !y) return false;
+  if (x === y) return true;
+  // only for number-like transaction IDs, never for free text ("Package 4" ≠ "Package 5")
+  const idLike = (v) => v.replace(/\D/g, '').length >= 8 && v.replace(/\d/g, '').length <= 3;
+  return idLike(x) && idLike(y) && editDistance(x, y) <= 2;
+}
+
 // ---------- main ----------
 
 /**
@@ -300,14 +312,21 @@ function verify(extracted, ctx) {
       duplicateOf = p;
       break;
     }
-    // Same picture re-compressed/resized (and showing the same amount)
-    if (ctx.thumbnail && p.thumbnail && isNearDuplicate(ctx.thumbnail, p.thumbnail) && amount != null && amount === pe.amount) {
-      duplicateOf = p;
-      break;
-    }
     const pDate = p.paymentDate || resolveDate(pe.date, p.receivedAt)?.date;
+    // Same picture re-compressed/resized. Receipts of one bank app look alike when shrunk, so the
+    // picture alone is not enough: the transaction ID must match too (or, without IDs, date + time).
+    if (ctx.thumbnail && p.thumbnail && isNearDuplicate(ctx.thumbnail, p.thumbnail) && amount != null && amount === pe.amount) {
+      const bothRefs = normRef(e.reference) && normRef(pe.reference);
+      const t1 = parseTime(e.time);
+      const t2 = parseTime(pe.time);
+      const sameMoment = resolved?.date && resolved.date === pDate && (!t1 || !t2 || (t1[0] === t2[0] && t1[1] === t2[1]));
+      if (bothRefs ? sameRef(e.reference, pe.reference) : sameMoment) {
+        duplicateOf = p;
+        break;
+      }
+    }
     if (
-      normRef(e.reference) && normRef(e.reference) === normRef(pe.reference) &&
+      sameRef(e.reference, pe.reference) &&
       amount != null && amount === pe.amount &&
       resolved?.date && resolved.date === pDate &&
       normName(senderName).join(' ') === normName(p.senderName).join(' ')

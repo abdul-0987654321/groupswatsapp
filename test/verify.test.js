@@ -100,7 +100,7 @@ test('near-duplicate image (re-compressed) with the same amount is caught', asyn
   const a = await fingerprints(original, 'image/png');
   const b = await fingerprints(resent, 'image/jpeg');
   assert.notStrictEqual(a.imageHash, b.imageHash);
-  const prev = { id: 'Z-1001', receivedAt: RECEIVED, ...a, extracted: { ...base, reference: 'x' } };
+  const prev = { id: 'Z-1001', receivedAt: RECEIVED, ...a, extracted: { ...base } }; // same picture → AI reads the same reference
   assert.match(run({}, { ...b, previousPayments: [prev] }).reasons[0], /^Duplikat/);
   assert.strictEqual(run({ amount: 90, reference: 'y' }, { ...b, previousPayments: [{ ...prev, extracted: { ...base, amount: 75 } }] }).status, 'VERIFIED');
 });
@@ -111,4 +111,21 @@ test('AI judgement: pending/failed transfer, suspicious receipt or AI says wrong
   assert.deepStrictEqual(run({ recipientIsExpected: false, aiNotes: 'Andere Bank.' }).reasons, ['KI: Empfänger passt nicht zum erwarteten Konto – Andere Bank.']);
   assert.strictEqual(run({ transferCompleted: true, recipientIsExpected: true, suspicious: false }).status, 'VERIFIED');
   assert.strictEqual(run({ transferCompleted: null, recipientIsExpected: null }).status, 'VERIFIED', 'unknown is not a failure');
+});
+
+test('look-alike receipts from the same bank app are not duplicates when the transaction IDs differ (real case)', () => {
+  const thumb = Buffer.alloc(2048, 7).toString('base64'); // identical tiny picture = same app layout
+  const prev = { id: 'Z-1003', receivedAt: '2026-10-05T13:25:00Z', imageHash: 'aaa', thumbnail: thumb, paymentDate: '2026-10-05', senderName: 'Saima Arshad',
+    extracted: { ...base, reference: '#57001381621', time: '12:53', amount: 90 } };
+  const ctx = { imageHash: 'bbb', thumbnail: thumb, previousPayments: [prev] };
+  // different transaction ID → not a duplicate
+  assert.strictEqual(run({ reference: '#57002986622', time: '13:28', senderName: 'Saima Arshad' }, ctx).status, 'VERIFIED');
+  // same ID (even with one misread digit) → duplicate
+  assert.match(run({ reference: '#570013816621', time: '12:53' }, ctx).reasons[0], /^Duplikat/);
+  // no IDs on either receipt: same date + time → duplicate, different time → not
+  const noRef = { ...prev, extracted: { ...prev.extracted, reference: null } };
+  assert.match(run({ reference: null, time: '12:53' }, { ...ctx, previousPayments: [noRef] }).reasons[0], /^Duplikat/);
+  assert.strictEqual(run({ reference: null, time: '13:28' }, { ...ctx, previousPayments: [noRef] }).status, 'VERIFIED');
+  // exactly the same file is always a duplicate
+  assert.match(run({ reference: '#57002986622' }, { ...ctx, imageHash: 'aaa' }).reasons[0], /^Duplikat/);
 });

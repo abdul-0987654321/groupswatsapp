@@ -54,6 +54,7 @@ Gib NUR die Felder des JSON-Schemas zurück. Regeln:
 - reference: bei pakistanischen Apps auch "Purpose"/"Description"/"Message", falls vorhanden. Eine Transaktions-ID (TID, Transaction ID) NICHT als reference, sondern in reference nur, wenn kein Verwendungszweck existiert – dann im Format "TID <nummer>".
 - bankApp: Name der Bank oder App, die den Beleg erzeugt hat (z. B. "Sparkasse", "Volksbank", "Revolut", "MLP", "ING", "Easypaisa", "JazzCash"), sonst null.
 - Pakistanische Belege: "Sent to", "Destination Acc. Title", "To", "Receiver" = EMPFÄNGER; "Sent by", "Source Acc. Title", "From", "Funding Source" = ABSENDER. Raast-IBAN/Kontonummer unter "Sent to"/"Destination" ist recipientIban.
+- Transaktions-IDs, Referenznummern und Kontonummern Zeichen für Zeichen exakt abschreiben – keine Ziffer doppelt oder auslassen.
 - Erfinde nichts. Unleserliche oder fehlende Felder → null.
 
 Zusätzlich deine eigene Einschätzung (die Prüfung im Code entscheidet am Ende, sei ehrlich und vorsichtig):
