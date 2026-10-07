@@ -14,7 +14,7 @@ const msgs = require('./messages');
 const customers = require('./customers');
 const payments = require('./payments');
 const { getCoaching } = require('./config');
-const { detectCoaching, keywordMatches, isOnlyGreeting, wantsChange } = require('./coaching-detect');
+const { detectCoaching, classifyPaidCustomer, keywordMatches, isOnlyGreeting, isOnlyThanks, isYes, wantsChange } = require('./coaching-detect');
 const alerts = require('./alerts');
 const settings = require('./settings');
 const db = require('./storage/db');
@@ -156,17 +156,28 @@ async function handleMessage(msg) {
         customers.save(customer);
         return reply(customer, msgs.askCoaching());
       }
-      // Naming a coaching they don't own yet = buying an additional one.
-      const hits = keywordMatches(text);
-      if (!media && hits.length === 1 && !payments.verifiedFor(customer.jid, hits[0])) return startCoaching(customer, getCoaching(hits[0]));
-      if (!media && hits.length === 1) return sendGroupLink(customer, payments.verifiedFor(customer.jid, hits[0]), { again: true });
-      // "new group" / "another coaching" → ask which one (their existing links stay valid).
-      if (!media && wantsChange(text)) {
+      if (media) return sendGroupLink(customer, paid, { again: true });
+      const askAnother = () => {
         customer.stage = STAGES.ASK_COACHING;
         customer.coachingId = null;
         customers.save(customer);
         return reply(customer, msgs.askAnotherCoaching());
-      }
+      };
+      const chooseCoaching = (id) => {
+        const owned = payments.verifiedFor(customer.jid, id);
+        return owned ? sendGroupLink(customer, owned, { again: true }) : startCoaching(customer, getCoaching(id)); // new one = new purchase
+      };
+      // 1. rules first: a coaching name, "new group"/"another", "yes" (answer to our offer), "thanks"
+      const hits = keywordMatches(text);
+      if (hits.length === 1) return chooseCoaching(hits[0]);
+      if (wantsChange(text) || isYes(text)) return askAnother();
+      if (isOnlyThanks(text)) return reply(customer, msgs.youreWelcome());
+      if (isOnlyGreeting(text)) return sendGroupLink(customer, paid, { again: true });
+      // 2. AI fallback for everything else — it may only return a code, the reply stays a fixed text
+      const owned = payments.forCustomer(customer.jid).filter((p) => p.status === payments.STATUS.VERIFIED).map((p) => getCoaching(p.coachingId)?.name).filter(Boolean);
+      const intent = await classifyPaidCustomer(text, [...new Set(owned)]);
+      if (getCoaching(intent)) return chooseCoaching(intent);
+      if (intent === 'NEW') return askAnother();
       return sendGroupLink(customer, paid, { again: true });
     }
 

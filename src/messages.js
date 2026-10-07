@@ -31,6 +31,7 @@ const TEXTS = {
       'Möchtest du ein anderes Coaching? Schreib mir einfach, welches.',
     changeCoaching: () => 'Kein Problem! Für welches Coaching interessierst du dich?',
     askAnotherCoaching: () => 'Gerne! Für welches weitere Coaching interessierst du dich? (Dein bisheriger Gruppenlink bleibt gültig.)',
+    youreWelcome: () => 'Gerne! 😊 Wenn du noch etwas brauchst, schreib mir einfach.',
     verified: (c) => `Zahlung bestätigt ✅ Hier ist dein Link zur Coaching-Gruppe: ${c.groupLink}`,
     verifiedLinkPending: () => 'Zahlung bestätigt ✅ Den Link zur Coaching-Gruppe bekommst du in Kürze.',
     alreadyVerified: (c) =>
@@ -55,6 +56,7 @@ const TEXTS = {
       'Would you like a different coaching? Just tell me which one.',
     changeCoaching: () => 'No problem! Which coaching are you interested in?',
     askAnotherCoaching: () => 'Sure! Which other coaching are you interested in? (Your current group link stays valid.)',
+    youreWelcome: () => "You're welcome! 😊 If you need anything else, just write me.",
     verified: (c) => `Payment confirmed ✅ Here is your link to the coaching group: ${c.groupLink}`,
     verifiedLinkPending: () => 'Payment confirmed ✅ You will receive the link to the coaching group shortly.',
     alreadyVerified: (c) =>

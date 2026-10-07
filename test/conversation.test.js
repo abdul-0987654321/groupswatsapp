@@ -362,3 +362,34 @@ test('bot paused: messages are saved but nobody gets a reply; switching on resum
   settings.set('botEnabled', true);
   assert.match((await h.say(h.textMsg(jid, 'Sport')))[0], /^Das Sport Coaching kostet/);
 });
+
+test('paid customer chat from testing: Hi → link, "I need new group"/"Yes need it" → asks which, thanks → polite, AI understands free text', async () => {
+  let aiAnswer = 'UNKNOWN';
+  const queue = [goodReceipt(80)];
+  const h = await createHarness({ classify: () => aiAnswer, receipts: { next: () => queue.shift() } });
+  const config = require('../src/config');
+  config.getCoaching('C2').groupLink = 'https://chat.whatsapp.com/TEST-MONEY';
+  require('../src/settings').set('botLanguage', 'en');
+  const jid = h.phoneJid(60);
+  await h.say(h.textMsg(jid, 'money'));
+  await h.say(h.imageMsg(jid, await img(60)));
+  const ASK = ['Sure! Which other coaching are you interested in? (Your current group link stays valid.)'];
+  const reset = () => { const c = h.customers.get(jid); c.stage = 'verified'; h.customers.save(c); };
+
+  assert.match((await h.say(h.textMsg(jid, 'Hi')))[0], /^You are already unlocked for the Money Coaching/);
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'I need new group')), ASK); reset();
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'Yes')), ASK); reset();
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'Yes need it')), ASK); reset();
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'haan ji')), ASK); reset();
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'ok thanks')), ["You're welcome! 😊 If you need anything else, just write me."]);
+  const before = h.aiCalls.classify;
+  aiAnswer = 'NEW';
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'mujhe aik aur join karna hai')), ASK); reset();
+  aiAnswer = 'C1';
+  assert.match((await h.say(h.textMsg(jid, 'the fitness one')))[0], /^The Sport Coaching costs 75 €/); reset();
+  aiAnswer = 'LINK';
+  assert.match((await h.say(h.textMsg(jid, 'the link does not open')))[0], /TEST-MONEY/);
+  aiAnswer = 'Sure, here is the IBAN DE00…'; // AI tries to write text → ignored, link again
+  assert.match((await h.say(h.textMsg(jid, 'blabla')))[0], /TEST-MONEY/);
+  assert.strictEqual(h.aiCalls.classify - before, 4, 'AI only for free text, not for rule matches');
+});

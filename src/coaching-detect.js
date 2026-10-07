@@ -81,6 +81,19 @@ function wantsChange(text) {
   return tokens(text).some((t) => CHANGE_WORDS.has(t));
 }
 
+// "yes" as an answer to "Would you like another coaching?"
+const YES_WORDS = new Set(['yes', 'yeah', 'yep', 'yup', 'ya', 'sure', 'ja', 'jaa', 'jo', 'klar', 'gerne', 'haan', 'han', 'ha', 'ji', 'jee', 'need', 'want', 'brauche', 'moechte', 'will']);
+function isYes(text) {
+  return tokens(text).some((t) => YES_WORDS.has(t));
+}
+
+// "thanks", "ok", "danke" → just a polite answer, no need to resend anything
+const THANKS_WORDS = new Set(['thanks', 'thank', 'thx', 'ty', 'danke', 'dankeschoen', 'dank', 'vielen', 'merci', 'shukriya', 'shukria', 'ok', 'okay', 'okey', 'perfect', 'perfekt', 'super', 'great', 'top', 'cool', 'nice', 'you', 'so', 'much', 'very', 'sehr', 'got', 'it', 'alles', 'klar', 'gut']);
+function isOnlyThanks(text) {
+  const toks = tokens(text);
+  return toks.length > 0 && toks.every((t) => THANKS_WORDS.has(t));
+}
+
 function isOnlyGreeting(text) {
   const toks = tokens(text);
   return toks.length === 0 || toks.every((t) => GREETINGS.has(t));
@@ -118,6 +131,44 @@ async function askAI(text) {
 }
 
 /**
+ * For customers who already paid: what do they want? The AI may only answer with one code:
+ * a coaching code (they name one), NEW (another coaching, not named), LINK (their link / access problem)
+ * or UNKNOWN. Replies are always fixed texts chosen by code.
+ */
+async function classifyPaidCustomer(text, ownedNames) {
+  const client = ai.getClient();
+  if (!client) return 'UNKNOWN';
+  const codes = coachings.map((c) => c.id);
+  const options = coachings.map((c) => `${c.id} = ${c.name} (Stichwörter: ${c.keywords.join(', ')})`).join('\n');
+  try {
+    const res = await client.chat.completions.create({
+      model: ai.MODEL,
+      temperature: 0,
+      max_tokens: 5,
+      messages: [
+        {
+          role: 'system',
+          content:
+            `Ein Kunde hat bereits bezahlt und ist freigeschaltet für: ${ownedNames.join(', ')}. ` +
+            'Der Bot hat ihm seinen Gruppenlink geschickt und gefragt, ob er ein weiteres Coaching möchte. ' +
+            'Ordne seine neue Nachricht (Deutsch, Englisch, Urdu/Hindi in lateinischer Schrift möglich) einem Code zu:\n' +
+            options +
+            '\nNEW = er möchte ein weiteres/neues Coaching oder eine neue Gruppe, nennt aber keins (auch "ja" auf die Frage)\n' +
+            'LINK = er fragt nach seinem Link, hat Probleme beim Beitreten oder will Zugang zu seiner Gruppe\n' +
+            `UNKNOWN = alles andere\nAntworte AUSSCHLIESSLICH mit genau einem Code: ${codes.join(', ')}, NEW, LINK oder UNKNOWN.`,
+        },
+        { role: 'user', content: String(text).slice(0, 500) },
+      ],
+    });
+    const answer = String(res.choices?.[0]?.message?.content || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return [...codes, 'NEW', 'LINK'].includes(answer) ? answer : 'UNKNOWN';
+  } catch (err) {
+    log.warn(`OpenAI intent detection failed: ${err.message}`);
+    return 'UNKNOWN';
+  }
+}
+
+/**
  * Detects the coaching for a message. Returns { id: 'C1' | … | null, source: 'keyword' | 'ai' | 'none' }.
  * `useAI: false` restricts detection to keywords (used when switching coaching mid-payment).
  */
@@ -129,4 +180,4 @@ async function detectCoaching(text, { useAI = true } = {}) {
   return code === 'UNKNOWN' ? { id: null, source: 'ai' } : { id: code, source: 'ai' };
 }
 
-module.exports = { detectCoaching, keywordMatches, normalize, editDistance, isOnlyGreeting, wantsChange };
+module.exports = { detectCoaching, classifyPaidCustomer, keywordMatches, normalize, editDistance, isOnlyGreeting, isOnlyThanks, isYes, wantsChange };
