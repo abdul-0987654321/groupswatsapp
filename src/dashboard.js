@@ -270,7 +270,7 @@ function mount(app) {
     const buffer = Buffer.from(base64, 'base64');
     const type = mimeType === 'application/pdf' ? 'application/pdf' : mimeType || 'image/jpeg';
     const fp = await fingerprints(buffer, type);
-    const extracted = await readReceipt(buffer, type);
+    const extracted = await readReceipt(buffer, type, { accounts: require('./config').ACCOUNTS, amount: coaching.price, currency: CURRENCY });
     const result = verify(extracted, { coaching, receivedAt: new Date().toISOString(), imageHash: fp.imageHash, thumbnail: fp.thumbnail, previousPayments: db.all('payments') });
     return { ok: true, coaching: { id: coaching.id, name: coaching.name, price: coaching.price }, extracted, ...result };
   }));

@@ -42,7 +42,7 @@ document.getElementById('go').onclick = async () => {
         ? '<div class="banner ok"><b>✅ Würde automatisch bestätigt</b> – der Kunde bekäme sofort den Gruppenlink.</div>'
         : '<div class="banner warn"><b>🟡 Würde zur Prüfung gehen</b> – siehe rote Punkte unten.</div>';
       box.innerHTML = `<h2>${esc(f.name)}</h2>${verdict}
-        <dl class="kv">${[['Empfänger', e.recipientName], ['IBAN', e.recipientIban], ['Betrag', e.amount == null ? null : e.amount + ' ' + (e.currency || '')], ['Datum', [e.date, e.time].filter(Boolean).join(' ')], ['→ Zahlungsdatum', dateDE(r.paymentDate)], ['Absender', r.senderName], ['Verwendungszweck', e.reference], ['Bank / App', e.bankApp]].map(([k, v]) => `<dt>${k}</dt><dd>${v == null || v === '' ? '–' : esc(v)}</dd>`).join('')}</dl>
+        <dl class="kv">${[['Empfänger', e.recipientName], ['IBAN', e.recipientIban], ['Betrag', e.amount == null ? null : e.amount + ' ' + (e.currency || '')], ['Datum', [e.date, e.time].filter(Boolean).join(' ')], ['→ Zahlungsdatum', dateDE(r.paymentDate)], ['Absender', r.senderName], ['Verwendungszweck', e.reference], ['Bank / App', e.bankApp], ['KI-Hinweis', e.aiNotes]].map(([k, v]) => `<dt>${k}</dt><dd>${v == null || v === '' ? '–' : esc(v)}</dd>`).join('')}</dl>
         <ul class="checks" style="margin-top:12px">${r.checks.map((c) => `<li class="${c.ok ? 'ok' : 'fail'}">${c.ok ? '✓' : '✗'} ${esc(c.label)}${c.detail ? ' – ' + esc(c.detail) : ''}</li>`).join('')}</ul>`;
     } catch (err) { box.innerHTML = `<h2>${esc(f.name)}</h2><div class="banner err">${esc(err.message)}</div>`; }
   }

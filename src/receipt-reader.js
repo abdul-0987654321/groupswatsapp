@@ -1,13 +1,17 @@
 'use strict';
 /**
- * Reads a payment receipt (screenshot or PDF) with OpenAI vision and returns the fields
- * as strict JSON. The AI only extracts what is printed — all decisions are made in verify.js.
+ * Reads a payment receipt (screenshot or PDF) with OpenAI vision and returns strict JSON:
+ * the printed fields plus the AI's own judgement (completed? to our account? edited?).
+ * The AI never decides alone — verify.js combines its judgement with checks in code.
  */
 
 const sharp = require('sharp');
 const ai = require('./ai');
 
-const FIELDS = ['isPaymentReceipt', 'recipientName', 'recipientIban', 'amount', 'currency', 'date', 'time', 'senderName', 'reference', 'bankApp'];
+const FIELDS = [
+  'isPaymentReceipt', 'recipientName', 'recipientIban', 'amount', 'currency', 'date', 'time', 'senderName', 'reference', 'bankApp',
+  'transferCompleted', 'recipientIsExpected', 'suspicious', 'aiNotes',
+];
 
 const SCHEMA = {
   name: 'payment_receipt',
@@ -27,6 +31,10 @@ const SCHEMA = {
       senderName: { type: ['string', 'null'] },
       reference: { type: ['string', 'null'] },
       bankApp: { type: ['string', 'null'] },
+      transferCompleted: { type: ['boolean', 'null'] },
+      recipientIsExpected: { type: ['boolean', 'null'] },
+      suspicious: { type: 'boolean' },
+      aiNotes: { type: ['string', 'null'] },
     },
   },
 };
@@ -45,7 +53,27 @@ Gib NUR die Felder des JSON-Schemas zurück. Regeln:
 - reference: Verwendungszweck/Reason/Reference genau wie gedruckt, sonst null.
 - reference: bei pakistanischen Apps auch "Purpose"/"Description"/"Message", falls vorhanden. Eine Transaktions-ID (TID, Transaction ID) NICHT als reference, sondern in reference nur, wenn kein Verwendungszweck existiert – dann im Format "TID <nummer>".
 - bankApp: Name der Bank oder App, die den Beleg erzeugt hat (z. B. "Sparkasse", "Volksbank", "Revolut", "MLP", "ING", "Easypaisa", "JazzCash"), sonst null.
-- Erfinde nichts. Unleserliche oder fehlende Felder → null.`;
+- Pakistanische Belege: "Sent to", "Destination Acc. Title", "To", "Receiver" = EMPFÄNGER; "Sent by", "Source Acc. Title", "From", "Funding Source" = ABSENDER. Raast-IBAN/Kontonummer unter "Sent to"/"Destination" ist recipientIban.
+- Erfinde nichts. Unleserliche oder fehlende Felder → null.
+
+Zusätzlich deine eigene Einschätzung (die Prüfung im Code entscheidet am Ende, sei ehrlich und vorsichtig):
+- transferCompleted: true, wenn die Zahlung als erfolgreich/ausgeführt/abgeschlossen angezeigt wird ("Successful", "Completed", "erfolgreich", "ausgeführt", gebucht). false bei "Pending", "Failed", "In Bearbeitung", "Vorgemerkt" mit Fehler, abgebrochen oder nur einer Eingabemaske. null, wenn nicht erkennbar.
+- recipientIsExpected: Vergleiche den Empfänger auf dem Beleg mit den ERWARTETEN Empfängerkonten (siehe Nachricht). true, wenn Name UND – falls sichtbar – Kontonummer/IBAN (auch teilweise maskiert, z. B. letzte Ziffern) dazu passen. false, wenn eine sichtbare Nummer oder der Name eindeutig nicht passt (z. B. andere Bank/andere Endziffern). null, wenn nicht entscheidbar.
+- suspicious: true, wenn der Beleg bearbeitet, zusammengesetzt, unscharf manipuliert oder unlogisch wirkt (z. B. Schriftarten passen nicht, Betrag überklebt, Datum/Uhrzeit widersprüchlich, Summe passt nicht zu Betrag + Gebühr). Sonst false.
+- aiNotes: kurzer Hinweis auf Deutsch (max. 1 Satz), z. B. warum etwas nicht passt. null, wenn alles unauffällig ist.`;
+
+function expectationText(expected) {
+  if (!expected) return 'Lies diesen Beleg aus.';
+  const accs = (expected.accounts || [])
+    .map((a) => `- ${a.recipient}, Konto/IBAN ${a.account}${a.bankName ? ', ' + a.bankName : ''}`)
+    .join('\n');
+  return (
+    'Lies diesen Beleg aus und beurteile ihn.\n' +
+    `Erwartete Empfängerkonten:\n${accs}\n` +
+    `Erwarteter Betrag: ${expected.amount} ${expected.currency}\n` +
+    'Wichtig: Gib die Felder trotzdem genau so zurück, wie sie auf dem Beleg stehen – nicht die erwarteten Werte.'
+  );
+}
 
 async function toModelInput(buffer, mimeType) {
   if (mimeType === 'application/pdf') {
@@ -55,7 +83,10 @@ async function toModelInput(buffer, mimeType) {
   return { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${jpeg.toString('base64')}`, detail: 'high' } };
 }
 
-async function readReceipt(buffer, mimeType = 'image/jpeg') {
+/**
+ * @param expected { accounts: [{recipient, account, bankName}], amount, currency } – what we expect to see
+ */
+async function readReceipt(buffer, mimeType = 'image/jpeg', expected = null) {
   const client = ai.getClient();
   if (!client) throw new Error('OPENAI_API_KEY ist nicht gesetzt');
   const res = await client.chat.completions.create({
@@ -65,7 +96,7 @@ async function readReceipt(buffer, mimeType = 'image/jpeg') {
     response_format: { type: 'json_schema', json_schema: SCHEMA },
     messages: [
       { role: 'system', content: PROMPT },
-      { role: 'user', content: [{ type: 'text', text: 'Lies diesen Beleg aus.' }, await toModelInput(buffer, mimeType)] },
+      { role: 'user', content: [{ type: 'text', text: expectationText(expected) }, await toModelInput(buffer, mimeType)] },
     ],
   });
   const raw = res.choices?.[0]?.message?.content || '{}';
@@ -73,6 +104,7 @@ async function readReceipt(buffer, mimeType = 'image/jpeg') {
   const out = {};
   for (const f of FIELDS) out[f] = parsed[f] ?? null;
   out.isPaymentReceipt = parsed.isPaymentReceipt === true;
+  out.suspicious = parsed.suspicious === true;
   if (typeof out.amount === 'string') out.amount = Number(String(out.amount).replace(/\./g, '').replace(',', '.')) || null;
   if (typeof out.amount === 'number') out.amount = Math.abs(out.amount);
   return out;

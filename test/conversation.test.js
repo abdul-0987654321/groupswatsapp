@@ -393,3 +393,19 @@ test('paid customer chat from testing: Hi → link, "I need new group"/"Yes need
   assert.match((await h.say(h.textMsg(jid, 'blabla')))[0], /TEST-MONEY/);
   assert.strictEqual(h.aiCalls.classify - before, 4, 'AI only for free text, not for rule matches');
 });
+
+test('unknown coachings ("mango", "Malaysia") get a "not offered" reply; vague messages get varied questions, never a list', async () => {
+  const answers = { 'I am interested ina mango': 'NOT_OFFERED', 'I am interested in Malaysia': 'NOT_OFFERED' };
+  const h = await createHarness({ classify: (t) => answers[t] || 'UNKNOWN' });
+  require('../src/settings').set('botLanguage', 'en');
+  const jid = h.phoneJid(70);
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'Hi')), ['Welcome! Which coaching are you interested in?']);
+  const notOffered = ["Sorry, we don't offer that coaching. 🙏 Please tell me the name of the coaching you are interested in."];
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'I am interested ina mango')), notOffered);
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'I am interested in Malaysia')), notOffered);
+  const vague = [];
+  for (const t of ['what do you have', 'tell me more', 'what else', 'hmm']) vague.push((await h.say(h.textMsg(jid, t)))[0]);
+  assert.ok(new Set(vague).size >= 3, 'questions vary: ' + vague.join(' | '));
+  assertNoList(h.sent);
+  assert.match((await h.say(h.textMsg(jid, 'sport')))[0], /^The Sport Coaching costs/);
+});

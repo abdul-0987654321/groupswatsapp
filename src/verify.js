@@ -208,6 +208,11 @@ function verify(extracted, ctx) {
   }
   add('recipient', `Empfänger = ${ACCOUNTS.map((a) => a.recipient).join(' / ')}`, recipientOk, recipientDetail);
 
+  // 2b. The AI's own view of the recipient (it saw the whole receipt). An explicit "no" sends it to review.
+  if (e.recipientIsExpected === false && recipientOk) {
+    add('aiRecipient', 'KI-Prüfung Empfänger', false, `KI: Empfänger passt nicht zum erwarteten Konto${e.aiNotes ? ' – ' + e.aiNotes : ''}`);
+  }
+
   // 3. Amount = price of the selected coaching (in the configured currency)
   const price = ctx.coaching?.price;
   const amount = typeof e.amount === 'number' ? e.amount : null;
@@ -229,6 +234,12 @@ function verify(extracted, ctx) {
     else if (age < -1) dateDetail = `Datum liegt in der Zukunft (${fmtDate(resolved.date)})`;
   }
   add('date', `Datum innerhalb von ${MAX_AGE_DAYS} Tagen`, !dateDetail, dateDetail);
+
+  // 4b. Transfer really completed (not pending/failed) and nothing looks edited
+  add('completed', 'Überweisung ausgeführt', e.transferCompleted !== false, e.transferCompleted === false ? 'Überweisung nicht abgeschlossen (z. B. ausstehend oder fehlgeschlagen)' : '');
+  if (e.suspicious === true) {
+    add('suspicious', 'Beleg unauffällig', false, `KI-Hinweis: Beleg wirkt verdächtig${e.aiNotes ? ' – ' + e.aiNotes : ''}`);
+  }
 
   // 5. Sender name (from receipt, else from reference)
   const senderName = e.senderName || senderFromReference(e.reference) || null;

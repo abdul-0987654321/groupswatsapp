@@ -115,15 +115,16 @@ async function askAI(text) {
           content:
             'Du ordnest WhatsApp-Nachrichten von Kunden einem Coaching zu. Mögliche Coachings:\n' +
             options +
-            `\n\nAntworte AUSSCHLIESSLICH mit genau einem Code: ${codes.join(', ')} oder UNKNOWN. ` +
-            'Antworte UNKNOWN, wenn die Nachricht nicht eindeutig ein bestimmtes Coaching meint ' +
-            '(z. B. Begrüßung, Fragen nach allen Angeboten, mehrere Coachings). Keine anderen Wörter.',
+            '\nNOT_OFFERED = der Kunde nennt ein konkretes Thema, Produkt, Land oder Coaching, das zu KEINEM der Coachings oben passt ' +
+            '(z. B. "Mango", "Malaysia", "Yoga-Kurs", "Kochen").\n' +
+            'UNKNOWN = die Nachricht nennt nichts Konkretes (Begrüßung, "was habt ihr?", Fragen nach allen Angeboten, Smalltalk) oder mehrere Coachings.\n' +
+            `\nAntworte AUSSCHLIESSLICH mit genau einem Code: ${codes.join(', ')}, NOT_OFFERED oder UNKNOWN. Keine anderen Wörter.`,
         },
         { role: 'user', content: String(text).slice(0, 500) },
       ],
     });
-    const answer = String(res.choices?.[0]?.message?.content || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-    return codes.includes(answer) ? answer : 'UNKNOWN';
+    const answer = String(res.choices?.[0]?.message?.content || '').trim().toUpperCase().replace(/[^A-Z0-9_]/g, '');
+    return [...codes, 'NOT_OFFERED'].includes(answer) ? answer : 'UNKNOWN';
   } catch (err) {
     log.warn(`OpenAI coaching detection failed: ${err.message}`);
     return 'UNKNOWN';
@@ -169,7 +170,8 @@ async function classifyPaidCustomer(text, ownedNames) {
 }
 
 /**
- * Detects the coaching for a message. Returns { id: 'C1' | … | null, source: 'keyword' | 'ai' | 'none' }.
+ * Detects the coaching for a message. Returns { id: 'C1' | … | null, source: 'keyword' | 'ai' | 'none', notOffered? }.
+ * notOffered = the customer named something specific we don't have ("Mango", "Malaysia").
  * `useAI: false` restricts detection to keywords (used when switching coaching mid-payment).
  */
 async function detectCoaching(text, { useAI = true } = {}) {
@@ -177,6 +179,7 @@ async function detectCoaching(text, { useAI = true } = {}) {
   if (hits.length === 1) return { id: hits[0], source: 'keyword' };
   if (!useAI || isOnlyGreeting(text)) return { id: null, source: 'none' };
   const code = await askAI(text);
+  if (code === 'NOT_OFFERED') return { id: null, source: 'ai', notOffered: true };
   return code === 'UNKNOWN' ? { id: null, source: 'ai' } : { id: code, source: 'ai' };
 }
 

@@ -146,6 +146,7 @@ async function openPayment(id, onChange) {
           ${kv('Betrag', e.amount == null ? null : `${e.amount} ${e.currency || ''}`)}${kv('Erwartet', euro(p.expectedAmount, p.currency))}
           ${kv('Datum (Beleg)', [e.date, e.time].filter(Boolean).join(' '))}${kv('Zahlungsdatum', dateDE(p.paymentDate))}
           ${kv('Absender', p.name)}${kv('Verwendungszweck', e.reference)}${kv('Bank / App', e.bankApp)}
+          ${kv('KI-Einschätzung', [e.transferCompleted === false ? 'nicht abgeschlossen' : e.transferCompleted ? 'ausgeführt' : null, e.recipientIsExpected === false ? 'Empfänger passt nicht' : e.recipientIsExpected ? 'Empfänger passt' : null, e.suspicious ? 'verdächtig' : null, e.aiNotes].filter(Boolean).join(' · '))}
           ${kv('WhatsApp-Name', d.customer?.pushName)}${kv('Gruppenlink gesendet', p.linkSent ? 'ja' : 'nein')}
         </dl></div>
         <div class="card"><h2>Prüfungen</h2><ul class="checks">

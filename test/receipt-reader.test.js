@@ -34,3 +34,16 @@ test('without OPENAI_API_KEY the reader fails clearly (receipt then goes to revi
   ai.setClient(null);
   await assert.rejects(readReceipt(Buffer.from('x'), 'image/png'), /OPENAI_API_KEY/);
 });
+
+test('the AI is told which account and amount we expect, and its judgement comes back', async () => {
+  const seen = [];
+  ai.setClient(fakeClient({ isPaymentReceipt: true, amount: 3, transferCompleted: true, recipientIsExpected: false, suspicious: false, aiNotes: 'Andere Endziffern (7015).' }, seen));
+  const png = await sharp({ create: { width: 40, height: 80, channels: 3, background: '#fff' } }).png().toBuffer();
+  const out = await readReceipt(png, 'image/png', { accounts: [{ recipient: 'Ali Raza', account: '0300 1234567', bankName: 'NayaPay' }], amount: 3, currency: 'PKR' });
+  const prompt = seen[0].messages[1].content[0].text;
+  assert.match(prompt, /Ali Raza, Konto\/IBAN 0300 1234567, NayaPay/);
+  assert.match(prompt, /Erwarteter Betrag: 3 PKR/);
+  assert.strictEqual(out.recipientIsExpected, false);
+  assert.strictEqual(out.aiNotes, 'Andere Endziffern (7015).');
+  assert.strictEqual(seen[0].response_format.json_schema.schema.required.includes('suspicious'), true);
+});

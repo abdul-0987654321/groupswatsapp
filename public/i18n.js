@@ -39,6 +39,10 @@
     'Zahlung bestätigen? Der Kunde bekommt automatisch den Gruppenlink.': 'Confirm payment? The customer automatically receives the group link.',
     'Zahlung ablehnen? Der Kunde wird gebeten, einen gültigen Beleg zu schicken.': 'Reject payment? The customer will be asked to send a valid receipt.',
     'Gruppenlink erneut an den Kunden senden?': 'Send the group link to the customer again?',
+    'KI-Einschätzung': 'AI assessment', 'KI-Hinweis': 'AI note', 'nicht abgeschlossen': 'not completed', 'ausgeführt': 'completed',
+    'Empfänger passt nicht': 'recipient does not match', 'Empfänger passt': 'recipient matches', 'verdächtig': 'suspicious',
+    'KI-Prüfung Empfänger': 'AI recipient check', 'Überweisung ausgeführt': 'Transfer completed', 'Beleg unauffällig': 'Receipt looks genuine',
+    'Überweisung nicht abgeschlossen (z. B. ausstehend oder fehlgeschlagen)': 'Transfer not completed (e.g. pending or failed)',
     // check labels
     'Zahlungsbeleg erkannt': 'Payment receipt recognised', 'Kein Duplikat': 'No duplicate', 'Datum innerhalb von 7 Tagen': 'Date within 7 days',
     // whatsapp page
@@ -217,6 +221,8 @@
     [/^Empfänger stimmt nicht \((.+)\)$/, 'Recipient does not match ($1)'],
     [/^Duplikat: gleicher Beleg wurde bereits am (.+) eingereicht \((.+)\)$/, 'Duplicate: same receipt was already submitted on $1 ($2)'],
     [/^Beleg konnte nicht automatisch gelesen werden \((.+)\)$/, 'Receipt could not be read automatically ($1)'],
+    [/^KI: Empfänger passt nicht zum erwarteten Konto(.*)$/, 'AI: recipient does not match the expected account$1'],
+    [/^KI-Hinweis: Beleg wirkt verdächtig(.*)$/, 'AI note: receipt looks suspicious$1'],
     [/^Bestätigt, aber Nachricht nicht gesendet: (.+)$/, 'Confirmed, but message not sent: $1'],
     [/^Abgelehnt, aber Nachricht nicht gesendet: (.+)$/, 'Rejected, but message not sent: $1'],
     [/^Google Sheet nicht erreichbar: (.+)$/, 'Google Sheet not reachable: $1'],

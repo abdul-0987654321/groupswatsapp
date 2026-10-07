@@ -94,6 +94,8 @@ Menu on the left (☰ on phones): **Übersicht** (overview), **Offene Prüfungen
 - **Admin alerts** (Einstellungen → Benachrichtigungen): enter one or more admin numbers with country code. The bot messages them when a receipt needs review, and/or when a payment was confirmed automatically and the link was sent. Use "Testnachricht senden" to check. Write to the bot once from the admin phone first. Messages from admin numbers are ignored by the customer flow, so don't use your test-customer phone as the admin number.
 
 ## How a receipt is checked
+OpenAI reads every receipt **and judges it itself**. It is told which account(s) and which amount we expect, and answers whether the transfer is completed, whether it went to our account, and whether the receipt looks edited, with a short note. Any "no" from the AI sends the receipt to review. The checks in code below must pass as well, so the AI never confirms a payment on its own.
+
 OpenAI (`gpt-4o-mini`) only reads the receipt fields. The decision is made in code (`src/verify.js`):
 
 - It is a payment receipt.

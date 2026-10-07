@@ -104,3 +104,11 @@ test('near-duplicate image (re-compressed) with the same amount is caught', asyn
   assert.match(run({}, { ...b, previousPayments: [prev] }).reasons[0], /^Duplikat/);
   assert.strictEqual(run({ amount: 90, reference: 'y' }, { ...b, previousPayments: [{ ...prev, extracted: { ...base, amount: 75 } }] }).status, 'VERIFIED');
 });
+
+test('AI judgement: pending/failed transfer, suspicious receipt or AI says wrong recipient → review', () => {
+  assert.deepStrictEqual(run({ transferCompleted: false }).reasons, ['Überweisung nicht abgeschlossen (z. B. ausstehend oder fehlgeschlagen)']);
+  assert.deepStrictEqual(run({ suspicious: true, aiNotes: 'Betrag wirkt überklebt.' }).reasons, ['KI-Hinweis: Beleg wirkt verdächtig – Betrag wirkt überklebt.']);
+  assert.deepStrictEqual(run({ recipientIsExpected: false, aiNotes: 'Andere Bank.' }).reasons, ['KI: Empfänger passt nicht zum erwarteten Konto – Andere Bank.']);
+  assert.strictEqual(run({ transferCompleted: true, recipientIsExpected: true, suspicious: false }).status, 'VERIFIED');
+  assert.strictEqual(run({ transferCompleted: null, recipientIsExpected: null }).status, 'VERIFIED', 'unknown is not a failure');
+});

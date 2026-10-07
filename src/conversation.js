@@ -81,6 +81,7 @@ async function sendGroupLink(customer, payment, { again = false } = {}) {
 
 async function startCoaching(customer, coaching) {
   customer.coachingId = coaching.id;
+  customer.askCount = 0;
   customer.stage = STAGES.AWAITING_SCREENSHOT;
   customers.save(customer);
   await reply(customer, msgs.price(coaching));
@@ -207,7 +208,7 @@ async function handleMessage(msg) {
     case STAGES.ASK_COACHING:
     default: {
       const isFirst = customer.stage === STAGES.NEW;
-      const { id } = text ? await detectCoaching(text) : { id: null };
+      const { id, notOffered } = text ? await detectCoaching(text) : { id: null };
       // Already paid for that coaching → just send that link again (no second payment).
       const owned = id && payments.verifiedFor(customer.jid, id);
       if (owned) {
@@ -216,9 +217,14 @@ async function handleMessage(msg) {
         return sendGroupLink(customer, owned, { again: true });
       }
       if (id) return startCoaching(customer, getCoaching(id));
+      // Not recognised: never list the coachings, but don't repeat the exact same question either.
       customer.stage = STAGES.ASK_COACHING;
+      customer.askCount = isFirst ? 0 : (customer.askCount || 0) + 1;
       customers.save(customer);
-      return reply(customer, isFirst ? msgs.welcome() : msgs.askCoaching());
+      if (isFirst) return reply(customer, msgs.welcome());
+      if (notOffered) return reply(customer, msgs.notOffered());
+      const variants = [msgs.askCoaching, msgs.askCoachingHint, msgs.askCoachingHelp];
+      return reply(customer, variants[(customer.askCount - 1) % variants.length]());
     }
   }
 }

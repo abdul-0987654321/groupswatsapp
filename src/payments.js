@@ -6,7 +6,7 @@
 
 const db = require('./storage/db');
 const log = require('./log');
-const { getCoaching, CURRENCY, MODE } = require('./config');
+const { getCoaching, CURRENCY, MODE, ACCOUNTS } = require('./config');
 const customers = require('./customers');
 const { readReceipt } = require('./receipt-reader');
 const { verify } = require('./verify');
@@ -51,7 +51,7 @@ async function processReceipt({ customer, coaching, buffer, mimeType, receivedAt
   const id = nextPaymentId();
   const ext = mimeType === 'application/pdf' ? 'pdf' : (mimeType.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
   const [readRes, fileRes] = await Promise.allSettled([
-    readReceipt(buffer, mimeType),
+    readReceipt(buffer, mimeType, { accounts: ACCOUNTS, amount: coaching.price, currency: CURRENCY }),
     db.putFile(`${id}_${customer.phone || customer.id}.${ext}`, mimeType, buffer),
   ]);
   if (fileRes.status === 'rejected') log.error(`Saving screenshot ${id} to Drive failed: ${fileRes.reason?.message}`);
