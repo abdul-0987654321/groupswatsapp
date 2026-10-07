@@ -1,6 +1,5 @@
 {
   "mode": "test",
-
   "live": {
     "recipient": "Ilyas Lang",
     "accountType": "iban",
@@ -9,16 +8,17 @@
     "bankName": "Sparkasse Mainz",
     "currency": "EUR"
   },
-
   "test": {
     "recipient": "Abdul Raheem Qureshi",
     "accountType": "account",
     "account": "03371456781",
     "bankName": "NayaPay",
     "currency": "PKR",
-    "prices": { "C1": 1, "C2": 2, "C3": 3, "MAIN": 4 },
-    "extraAccounts": [
-      { "recipient": "Saima Arshad", "accountType": "account", "account": "03488186229", "bankName": "Easypaisa" }
-    ]
+    "prices": {
+      "C1": 1,
+      "C2": 2,
+      "C3": 3,
+      "MAIN": 4
+    }
   }
 }
