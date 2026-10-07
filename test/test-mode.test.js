@@ -47,6 +47,20 @@ test('test mode: Pakistani receipt checks (number formats, Rs, masked, wrong acc
   assert.deepStrictEqual(verify({ ...base, recipientIban: '03119876543' }, ctx).reasons, ['Empfänger-Konto stimmt nicht (03119876543)']);
 });
 
+test('right name but a different (masked) account number → review, not auto-confirmed (real receipt from testing)', () => {
+  for (const k of Object.keys(require.cache)) if (k.includes('/src/')) delete require.cache[k];
+  const { verify, accountMatches } = require('../src/verify');
+  const { getCoaching } = require('../src/config');
+  const receipt = { isPaymentReceipt: true, recipientName: 'ALI RAZA', recipientIban: '00*******************7015', amount: 1, currency: 'PKR', date: '07 October 2026', time: '12:53', senderName: 'Saima Arshad', reference: 'TID #57001381621', bankApp: 'easypaisa' };
+  const ctx = { coaching: getCoaching('C1'), receivedAt: '2026-10-07T12:55:00+05:00', previousPayments: [] };
+  assert.deepStrictEqual(verify(receipt, ctx).reasons, ['Empfänger-Konto stimmt nicht (00*******************7015)']);
+  assert.strictEqual(accountMatches('●●●●4567'), true, 'masked but fitting → ok');
+  assert.strictEqual(accountMatches('4567'), true, 'only last digits, fitting → ok');
+  assert.strictEqual(accountMatches('9999'), false, 'only last digits, different → not ok');
+  assert.strictEqual(accountMatches('**67'), null, 'too little visible → name decides');
+  assert.deepStrictEqual(verify({ ...receipt, recipientIban: null }, ctx).reasons, [], 'no number at all → name is enough');
+});
+
 test.after(() => fs.rmSync(file, { force: true }));
 
 test('extra accepted accounts: payment to the second account (by number or name) passes', () => {

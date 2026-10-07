@@ -23,10 +23,18 @@ const normName = (s) =>
     .split(' ').filter(Boolean);
 
 // Masked numbers ("DE85 **** 6021 16", "****4567"): visible parts must match at the same positions
+/**
+ * Masked numbers ("DE85 **** 6021 16", "00****7015", "●●●●6229"): the visible digits must fit our account.
+ * Returns true (fits), false (visible digits contradict our account) or null (too little visible to say).
+ */
 function maskedMatches(got, want, minVisible) {
   const [head, ...rest] = got.split(/\*+/);
   const tail = rest.pop() || '';
-  return head.length + tail.length >= minVisible && want.startsWith(head) && want.endsWith(tail);
+  if (head.length + tail.length < minVisible) return null;
+  if (tail && !want.endsWith(tail)) return false;
+  if (head.length >= 3 && !want.startsWith(head)) return false; // short prefixes like "00" are often just formatting
+  if (!tail && head.length < 3) return null;
+  return true;
 }
 
 // Pakistani numbers may be printed as 0337… or +92 337…
@@ -35,23 +43,28 @@ const normDigits = (s) => {
   return /^92\d{10}$/.test(d) ? '0' + d.slice(2) : d;
 };
 
-/** One account: true = matches, false = readable but different, null = nothing readable */
+/** One account: true = matches, false = readable and different, null = not enough to decide */
 function matchesOne(acc, printed) {
   if (acc.accountType === 'iban') {
     const got = normIban(printed);
     const want = normIban(acc.account);
     if (!got) return null;
     if (got === want) return true;
-    return got.includes('*') ? maskedMatches(got, want, 6) : false;
+    if (got.includes('*')) return maskedMatches(got, want, 6);
+    if (want.startsWith(got) || want.endsWith(got)) return got.length >= 10 ? true : null; // cut-off reading of our IBAN
+    return false;
   }
   const got = normDigits(printed);
   const want = normDigits(acc.account);
-  if (!got.replace(/\*/g, '')) return null;
+  const visible = got.replace(/\*/g, '');
+  if (!visible) return null;
   if (got === want) return true;
   if (got.includes('*')) return maskedMatches(got, want, 4);
+  // only the last digits printed ("6781")
+  if (got.length < 7) return got.length >= 4 ? want.endsWith(got) : null;
   // e.g. a Pakistani IBAN (PK.. + bank code + account number) contains the account number at the end
   const [shorter, longer] = got.length < want.length ? [got, want] : [want, got];
-  return shorter.length >= 7 && longer.endsWith(shorter);
+  return longer.endsWith(shorter);
 }
 
 /** Matches any accepted recipient account. */
@@ -179,7 +192,9 @@ function verify(extracted, ctx) {
   const name = nameMatches(e.recipientName);
   let recipientOk;
   let recipientDetail = '';
-  if (iban === false && accountFullyReadable(e.recipientIban)) {
+  // A readable account number that contradicts ours always fails – even if the name matches
+  // (e.g. same name, but paid into a different bank account).
+  if (iban === false) {
     recipientOk = false;
     recipientDetail = `${BANK.accountType === 'iban' ? 'Empfänger-IBAN' : 'Empfänger-Konto'} stimmt nicht (${e.recipientIban})`;
   } else {
