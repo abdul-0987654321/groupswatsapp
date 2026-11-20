@@ -3,6 +3,9 @@
  * Conversation flow (German, plain text, never lists the coachings):
  *
  *   new / ask_coaching ── coaching recognised ──► awaiting_screenshot (price + bank details sent)
+ *   any stage ── menu trigger ("812") ──► ask_package (numbered packages 1–5)
+ *   ask_package ── package picked ──► awaiting_screenshot (receipt requested, no bank details:
+ *                                     price and IBAN were in the group announcement)
  *   awaiting_screenshot ── receipt ──► VERIFIED → link sent          (stage verified)
  *                                   └► NEEDS_REVIEW → "wird geprüft"  (stage in_review)
  *   in_review ── admin "Bestätigen" ──► link sent (verified) / "Ablehnen" ──► awaiting_screenshot
@@ -13,8 +16,8 @@ const log = require('./log');
 const msgs = require('./messages');
 const customers = require('./customers');
 const payments = require('./payments');
-const { getCoaching } = require('./config');
-const { detectCoaching, classifyPaidCustomer, keywordMatches, isOnlyGreeting, isOnlyThanks, isYes, isNo, isConfirm, wantsChange } = require('./coaching-detect');
+const { getCoaching, getMenuForCoaching, getMenu } = require('./config');
+const { detectCoaching, detectMenu, detectPackage, classifyPaidCustomer, keywordMatches, isOnlyGreeting, isOnlyThanks, isYes, isNo, isConfirm, wantsChange } = require('./coaching-detect');
 const alerts = require('./alerts');
 const settings = require('./settings');
 const db = require('./storage/db');
@@ -72,6 +75,13 @@ async function sendGroupLink(customer, payment, { again = false } = {}) {
     await reply(customer, msgs.verifiedLinkPending());
     return false;
   }
+  // Packages booked through a menu use that menu's own confirmation wording (client-specified).
+  const menu = getMenuForCoaching(coaching.id);
+  if (menu) {
+    await reply(customer, msgs.packageVerified(menu, coaching));
+    payments.markLinkSent(payment.id);
+    return true;
+  }
   await reply(customer, again ? msgs.alreadyVerified(coaching) : msgs.verified(coaching));
   payments.markLinkSent(payment.id);
   return true;
@@ -104,7 +114,20 @@ async function startCoaching(customer, coaching) {
   customer.priceSentAt = new Date().toISOString(); // a matching payment can't be older than this
   customer.stage = STAGES.AWAITING_SCREENSHOT;
   customers.save(customer);
-  await reply(customer, msgs.price(coaching));
+  // Menu packages: the price and bank details were already in the group announcement,
+  // so the bot only asks for the receipt (client-specified wording).
+  const menu = getMenuForCoaching(coaching.id);
+  await reply(customer, menu ? msgs.packageRequestReceipt(menu) : msgs.price(coaching));
+}
+
+/** A trigger code like "812" was recognised: show that menu's numbered packages. */
+async function startMenu(customer, menu) {
+  customer.stage = STAGES.ASK_PACKAGE;
+  customer.menuId = menu.id;
+  customer.coachingId = null;
+  customer.askCount = 0;
+  customers.save(customer);
+  await reply(customer, msgs.packageMenu(menu));
 }
 
 async function handleReceipt(customer, msg, media, chatEntry) {
@@ -168,6 +191,13 @@ async function handleMessage(msg) {
   }
   if (media && !isReceiptStep) storeChatMedia(customer, msg, media, chatEntry);
 
+  // A menu trigger ("812") opens that menu from any stage — except while a receipt is being
+  // checked, and never instead of handling a receipt the customer just sent.
+  if (text && !media && customer.stage !== STAGES.IN_REVIEW) {
+    const menu = detectMenu(text);
+    if (menu) return startMenu(customer, menu);
+  }
+
   switch (customer.stage) {
     case STAGES.VERIFIED: {
       const paid = payments.latestVerified(customer.jid);
@@ -216,8 +246,40 @@ async function handleMessage(msg) {
         return reply(customer, msgs.changeCoaching());
       }
       // "Hi" again → repeat price + bank details, they may have lost them.
-      if (isOnlyGreeting(text)) return reply(customer, msgs.price(current));
+      if (isOnlyGreeting(text)) {
+        const menu = getMenuForCoaching(current.id);
+        return reply(customer, menu ? msgs.packageRequestReceipt(menu) : msgs.price(current));
+      }
       return reply(customer, msgs.remindScreenshot(current));
+    }
+
+    case STAGES.ASK_PACKAGE: {
+      const menu = getMenu(customer.menuId);
+      if (!menu) { // menu removed from config while someone was mid-flow
+        customer.stage = STAGES.ASK_COACHING;
+        customer.menuId = null;
+        customers.save(customer);
+        return reply(customer, msgs.askCoaching());
+      }
+      // A receipt before a package was chosen: we don't know the amount to check against.
+      if (media) return reply(customer, msgs.packageMenuRetry(menu));
+      const picked = detectPackage(menu, text);
+      if (picked) {
+        const owned = payments.verifiedFor(customer.jid, picked.id);
+        if (owned) {
+          customer.stage = STAGES.VERIFIED;
+          customers.save(customer);
+          return sendGroupLink(customer, owned, { again: true });
+        }
+        return startCoaching(customer, picked.coaching);
+      }
+      if (wantsChange(text)) {
+        customer.stage = STAGES.ASK_COACHING;
+        customer.menuId = null;
+        customers.save(customer);
+        return reply(customer, msgs.changeCoaching());
+      }
+      return reply(customer, msgs.packageMenuRetry(menu));
     }
 
     case STAGES.CONFIRM_COACHING: {

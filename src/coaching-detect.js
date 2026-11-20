@@ -5,7 +5,7 @@
  * anything else is treated as UNKNOWN. The customer never sees a list of coachings.
  */
 
-const { coachings } = require('./config');
+const { menus, detectableCoachings } = require('./config');
 const ai = require('./ai');
 const log = require('./log');
 
@@ -63,7 +63,7 @@ function tokenMatchesKeyword(token, kw) {
 function keywordMatches(text) {
   const toks = tokens(text);
   const hits = [];
-  for (const c of coachings) {
+  for (const c of detectableCoachings) {
     const kws = c.keywords.map(normalize).filter(Boolean);
     if (toks.some((t) => kws.some((kw) => tokenMatchesKeyword(t, kw)))) hits.push(c.id);
   }
@@ -112,8 +112,8 @@ function isOnlyGreeting(text) {
 async function askAI(text) {
   const client = ai.getClient();
   if (!client) return 'UNKNOWN';
-  const codes = coachings.map((c) => c.id);
-  const options = coachings.map((c) => `${c.id} = ${c.name} (Stichwörter: ${c.keywords.join(', ')})`).join('\n');
+  const codes = detectableCoachings.map((c) => c.id);
+  const options = detectableCoachings.map((c) => `${c.id} = ${c.name} (Stichwörter: ${c.keywords.join(', ')})`).join('\n');
   try {
     const res = await client.chat.completions.create({
       model: ai.MODEL,
@@ -152,8 +152,8 @@ async function askAI(text) {
 async function classifyPaidCustomer(text, ownedNames) {
   const client = ai.getClient();
   if (!client) return 'UNKNOWN';
-  const codes = coachings.map((c) => c.id);
-  const options = coachings.map((c) => `${c.id} = ${c.name} (Stichwörter: ${c.keywords.join(', ')})`).join('\n');
+  const codes = detectableCoachings.map((c) => c.id);
+  const options = detectableCoachings.map((c) => `${c.id} = ${c.name} (Stichwörter: ${c.keywords.join(', ')})`).join('\n');
   try {
     const res = await client.chat.completions.create({
       model: ai.MODEL,
@@ -186,6 +186,42 @@ async function classifyPaidCustomer(text, ownedNames) {
 }
 
 /**
+ * A package menu opened by its trigger code ("812") or one of its keywords ("chemie").
+ * Checked before coaching detection, so a trigger never falls through to the AI.
+ */
+function detectMenu(text) {
+  const toks = tokens(text);
+  if (!toks.length) return null;
+  // Everything that isn't a greeting ("hallo 812" still counts as just the code).
+  const meaningful = toks.filter((t) => !GREETINGS.has(t));
+  for (const menu of menus) {
+    const codes = menu.triggers.map(normalize).filter(Boolean);
+    const words = menu.keywords.map(normalize).filter(Boolean);
+    // A numeric code only counts as the whole message — so "ich habe 812 Euro überwiesen"
+    // is not read as a booking trigger.
+    const codeHit = codes.some((c) => (/^[0-9]+$/.test(c) ? meaningful.length === 1 && meaningful[0] === c : toks.includes(c)));
+    if (codeHit || toks.some((t) => words.includes(t))) return menu;
+  }
+  return null;
+}
+
+/** Which package of a menu the customer picked: "3", or a package keyword. Null if unclear. */
+function detectPackage(menu, text) {
+  const toks = tokens(text);
+  if (!toks.length) return null;
+  // Exactly one number in the message, and it is a position in the list.
+  const numbers = toks.filter((t) => /^[0-9]+$/.test(t)).map(Number);
+  if (numbers.length === 1 && Number.isInteger(numbers[0]) && numbers[0] >= 1 && numbers[0] <= menu.options.length) {
+    return menu.options[numbers[0] - 1];
+  }
+  for (const o of menu.options) {
+    const kws = o.keywords.map(normalize).filter(Boolean);
+    if (kws.length && toks.some((t) => kws.some((kw) => tokenMatchesKeyword(t, kw)))) return o;
+  }
+  return null;
+}
+
+/**
  * Detects the coaching for a message. Returns { id: 'C1' | … | null, source: 'keyword' | 'ai' | 'none', notOffered? }.
  * notOffered = the customer named something specific we don't have ("Mango", "Malaysia").
  * `useAI: false` restricts detection to keywords (used when switching coaching mid-payment).
@@ -199,4 +235,4 @@ async function detectCoaching(text, { useAI = true } = {}) {
   return code === 'UNKNOWN' ? { id: null, source: 'ai' } : { id: code, source: 'ai' };
 }
 
-module.exports = { detectCoaching, classifyPaidCustomer, keywordMatches, normalize, editDistance, isOnlyGreeting, isOnlyThanks, isYes, isNo, isConfirm, wantsChange };
+module.exports = { detectCoaching, detectMenu, detectPackage, classifyPaidCustomer, keywordMatches, normalize, editDistance, isOnlyGreeting, isOnlyThanks, isYes, isNo, isConfirm, wantsChange };

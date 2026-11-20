@@ -16,6 +16,10 @@ const accountLines = (lang) =>
     ? `IBAN: ${BANK.account}\n`
     : `${lang === 'de' ? 'Kontonummer' : 'Account number'}: ${BANK.account}\n` + (BANK.bankName ? `Bank: ${BANK.bankName}\n` : '');
 
+/** "1. Probestunde – 5 €" … prices always come from config, never from the menu file. */
+const menuOptions = (menu, lang) =>
+  menu.options.map((o, i) => `${i + 1}. ${o.label[lang]} – ${price(o.coaching)}`).join('\n');
+
 const TEXTS = {
   de: {
     welcome: () => 'Willkommen! Für welches Coaching interessierst du dich?',
@@ -46,6 +50,11 @@ const TEXTS = {
     stillInReview: () => 'Deine Zahlung wird gerade noch geprüft. Du bekommst gleich Bescheid.',
     rejected: () => 'Leider konnten wir deine Zahlung nicht bestätigen. Bitte schick uns einen gültigen Überweisungsbeleg.',
     imageUnreadable: () => 'Ich konnte die Datei leider nicht öffnen. Bitte schick den Screenshot noch einmal.',
+    // Package menus (config/menus.json): wording comes from the config file, the numbered list and prices from code.
+    packageMenu: (menu) => `${menu.texts.de.intro}\n\n${menuOptions(menu, 'de')}`,
+    packageMenuRetry: (menu) => `${menu.texts.de.retry || menu.texts.de.intro}\n\n${menuOptions(menu, 'de')}`,
+    packageRequestReceipt: (menu) => menu.texts.de.requestReceipt,
+    packageVerified: (menu, c) => `${menu.texts.de.verified}${c.groupLink ? `\n\n${c.groupLink}` : ''}`,
   },
   en: {
     welcome: () => 'Welcome! Which coaching are you interested in?',
@@ -76,6 +85,10 @@ const TEXTS = {
     stillInReview: () => 'Your payment is still being checked. You will hear from us shortly.',
     rejected: () => 'Unfortunately we could not confirm your payment. Please send us a valid transfer receipt.',
     imageUnreadable: () => 'Sorry, I could not open the file. Please send the screenshot again.',
+    packageMenu: (menu) => `${menu.texts.en.intro}\n\n${menuOptions(menu, 'en')}`,
+    packageMenuRetry: (menu) => `${menu.texts.en.retry || menu.texts.en.intro}\n\n${menuOptions(menu, 'en')}`,
+    packageRequestReceipt: (menu) => menu.texts.en.requestReceipt,
+    packageVerified: (menu, c) => `${menu.texts.en.verified}${c.groupLink ? `\n\n${c.groupLink}` : ''}`,
   },
 };
 

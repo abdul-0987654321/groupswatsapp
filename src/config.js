@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 
 const COACHINGS_FILE = path.join(__dirname, '..', 'config', 'coachings.json');
+const MENUS_FILE = process.env.MENUS_FILE || path.join(__dirname, '..', 'config', 'menus.json'); // env override for tests
 const PAYMENT_FILE = process.env.PAYMENT_FILE || path.join(__dirname, '..', 'config', 'payment.json'); // env override for tests
 
 function loadPayment() {
@@ -67,6 +68,43 @@ function loadCoachings() {
 
 const coachings = loadCoachings();
 
+/**
+ * Package menus (config/menus.json). A menu is a trigger code (e.g. "812") that opens a
+ * numbered list of packages, each of which is an ordinary coaching from coachings.json.
+ * The customer-facing texts live in the config file so wording changes need no code change.
+ * Coachings that belong to a menu are reachable ONLY through it — never by keyword or AI —
+ * so the bot still never lists everything it offers.
+ */
+function loadMenus() {
+  if (!fs.existsSync(MENUS_FILE)) return [];
+  const raw = JSON.parse(fs.readFileSync(MENUS_FILE, 'utf8'));
+  return Object.entries(raw).map(([id, m]) => {
+    const options = (m.options || []).map((o) => {
+      const coaching = coachings.find((c) => c.id === o.id);
+      if (!coaching) throw new Error(`config/menus.json: "${id}" refers to unknown coaching "${o.id}"`);
+      return Object.freeze({
+        id: o.id,
+        coaching,
+        label: Object.freeze({ de: String(o.label?.de || coaching.name), en: String(o.label?.en || o.label?.de || coaching.name) }),
+        keywords: (o.keywords || []).map((k) => String(k).toLowerCase()),
+      });
+    });
+    if (!options.length) throw new Error(`config/menus.json: "${id}" has no options`);
+    if (!m.texts?.de?.intro) throw new Error(`config/menus.json: "${id}" needs texts.de.intro`);
+    return Object.freeze({
+      id,
+      triggers: (m.triggers || []).map((t) => String(t).toLowerCase()),
+      keywords: (m.keywords || []).map((k) => String(k).toLowerCase()),
+      texts: Object.freeze({ de: Object.freeze({ ...m.texts.de }), en: Object.freeze({ ...(m.texts.en || m.texts.de) }) }),
+      options: Object.freeze(options),
+    });
+  });
+}
+
+const menus = loadMenus();
+const menuByCoaching = new Map();
+for (const menu of menus) for (const o of menu.options) menuByCoaching.set(o.id, menu);
+
 module.exports = {
   MODE,
   BANK,
@@ -74,5 +112,11 @@ module.exports = {
   CURRENCY,
   TIMEZONE,
   coachings,
+  menus,
   getCoaching: (id) => coachings.find((c) => c.id === id) || null,
+  /** The menu a coaching belongs to, or null for a normal standalone coaching. */
+  getMenuForCoaching: (id) => menuByCoaching.get(id) || null,
+  getMenu: (id) => menus.find((m) => m.id === id) || null,
+  /** Coachings that may be found by keyword or AI: everything that is not a menu package. */
+  detectableCoachings: Object.freeze(coachings.filter((c) => !menuByCoaching.has(c.id))),
 };

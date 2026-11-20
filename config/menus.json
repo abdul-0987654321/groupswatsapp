@@ -1,0 +1,27 @@
+{
+  "CHEMIE": {
+    "triggers": ["812"],
+    "keywords": ["chemie", "nachhilfe"],
+    "texts": {
+      "de": {
+        "intro": "Hey, welches Paket möchtest du wählen?",
+        "requestReceipt": "Schick mir jetzt bitte den Zahlungsbeleg. Du kannst einfach einen Screenshot von der Überweisung als Bild hier reinschicken.",
+        "verified": "Perfekt, du bist für die Nachhilfe freigeschaltet, vielen Dank!",
+        "retry": "Bitte antworte einfach mit der Nummer des Pakets (1–5)."
+      },
+      "en": {
+        "intro": "Hey, which package would you like to choose?",
+        "requestReceipt": "Please send me the payment receipt now. You can simply send a screenshot of the bank transfer as an image here.",
+        "verified": "Perfect, you are now registered for the tutoring, thank you very much!",
+        "retry": "Please just reply with the number of the package (1–5)."
+      }
+    },
+    "options": [
+      { "id": "CHEM_PROBE",    "label": { "de": "Probestunde",      "en": "Trial lesson" },       "keywords": ["probestunde", "probe", "trial"] },
+      { "id": "CHEM_KOMPLETT", "label": { "de": "Komplettpaket",    "en": "Complete package" },   "keywords": ["komplettpaket", "komplett", "complete"] },
+      { "id": "CHEM_T1",       "label": { "de": "Thema 1 bis 5",    "en": "Topics 1 to 5" },      "keywords": [] },
+      { "id": "CHEM_T2",       "label": { "de": "Thema 5 bis 10",   "en": "Topics 5 to 10" },     "keywords": [] },
+      { "id": "CHEM_T3",       "label": { "de": "Thema 10 bis 15",  "en": "Topics 10 to 15" },    "keywords": [] }
+    ]
+  }
+}

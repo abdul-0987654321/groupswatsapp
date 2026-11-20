@@ -11,7 +11,12 @@
       "C1": 1,
       "C2": 2,
       "C3": 3,
-      "MAIN": 4
+      "MAIN": 4,
+      "CHEM_PROBE": 1,
+      "CHEM_KOMPLETT": 2,
+      "CHEM_T1": 3,
+      "CHEM_T2": 4,
+      "CHEM_T3": 1
     },
     "timezone": "Europe/Berlin"
   },
@@ -34,7 +39,12 @@
       "C1": 1,
       "C2": 2,
       "C3": 3,
-      "MAIN": 4
+      "MAIN": 4,
+      "CHEM_PROBE": 1,
+      "CHEM_KOMPLETT": 2,
+      "CHEM_T1": 3,
+      "CHEM_T2": 4,
+      "CHEM_T3": 1
     },
     "timezone": "Asia/Karachi"
   }

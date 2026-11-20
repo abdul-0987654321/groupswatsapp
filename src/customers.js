@@ -14,6 +14,7 @@ const STAGES = {
   NEW: 'new',
   ASK_COACHING: 'ask_coaching',
   CONFIRM_COACHING: 'confirm_coaching', // AI guessed a coaching → customer must say yes first
+  ASK_PACKAGE: 'ask_package', // a menu trigger (e.g. "812") was sent → customer picks a package 1–5
   AWAITING_SCREENSHOT: 'awaiting_screenshot',
   IN_REVIEW: 'in_review',
   VERIFIED: 'verified',

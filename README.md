@@ -28,10 +28,52 @@ You can add or remove coachings. The key (`C1`, `MAIN`, …) is the internal cod
 
 The bank details are in `config/payment.json` and are never written by the AI.
 
+## Package menus (`config/menus.json`)
+
+Some offers are sold as several packages at different prices. Those are reached by a **trigger code**
+instead of a keyword: the customer reads the packages and bank details in the group announcement,
+messages the code, and the bot shows a numbered list to pick from.
+
+```json
+{
+  "CHEMIE": {
+    "triggers": ["812"],
+    "keywords": ["chemie", "nachhilfe"],
+    "texts": {
+      "de": { "intro": "…", "requestReceipt": "…", "verified": "…", "retry": "…" },
+      "en": { "…": "…" }
+    },
+    "options": [
+      { "id": "CHEM_PROBE", "label": { "de": "Probestunde", "en": "Trial lesson" }, "keywords": ["probestunde"] }
+    ]
+  }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `triggers` | Codes that open the menu. A purely numeric code only counts when the message is just that code, so "Ich habe 812 Euro überwiesen" is not read as a booking. |
+| `keywords` | Words that also open the menu ("Chemie"), matched anywhere in the message. |
+| `texts` | Exactly what the customer reads, per language. Change the wording here, never in the code. `intro` is followed by the numbered list, which code builds from the options and the prices in `coachings.json`. |
+| `options` | The packages, in the order they are numbered. Each `id` must exist in `coachings.json` (that's where its price and group link live). Per-option `keywords` are optional; a customer can always just answer with the number. |
+
+Each package is an ordinary coaching entry in `coachings.json`, so prices, group links, receipt
+checking, the review queue and the dashboard all work exactly as for any other coaching. Several
+packages may share one `groupLink`. **Packages are reachable only through their menu** — never by
+keyword or by the AI — so the bot still never reveals everything on offer.
+
+Payments are checked as strictly as everywhere else: the amount must match the package the customer
+picked, and anything unclear goes to **Offene Prüfungen** instead of granting access. Where several
+packages cost the same, the receipt cannot tell them apart — the package recorded is the one the
+customer selected.
+
+Menus are optional: delete `config/menus.json` and the bot behaves as it did before.
+
 ## Test mode vs. live mode
 `config/payment.json` holds two payment profiles:
 
 - **`live`**: the client's account (Ilyas Lang, IBAN, EUR) with the prices from `coachings.json`.
+- **`trial`**: the client's real account with tiny test prices, for a dry run before launch.
 - **`test`**: your own test account (for example a Pakistani bank or wallet number, PKR) with tiny test prices (`"prices": { "C1": 1, "C2": 2, "C3": 3, "MAIN": 4 }`).
 
 Set `"mode": "test"` or `"mode": "live"` and commit; Render redeploys by itself. In test mode the dashboard shows a red **TESTMODUS** banner. Optional `"extraAccounts": [...]` lists more accounts that are also accepted as recipient (only the first account is shown to customers). For test accounts, `accountType: "account"` makes the bot show "Kontonummer / Account number + Bank" instead of "IBAN". Number formats like `0300…`, `+92 300…`, masked `****4567`, or an IBAN that ends in the account number all count as a match.
@@ -109,10 +151,10 @@ If every check passes, the payment is **VERIFIED** and the link is sent automati
 **Beleg testen** in the dashboard checks a receipt the same way, without saving anything or messaging anyone. From the command line: `node scripts/check-receipts.js <folder> --coaching MAIN` (needs `OPENAI_API_KEY`).
 
 ## WhatsApp safety rules (built in)
-- Plain text only: no buttons or lists.
+- Plain text only: no buttons or interactive WhatsApp lists. Package menus (see above) are sent as plain numbered text, because Baileys cannot send interactive lists reliably.
 - The bot only replies to private messages and ignores groups, status and broadcasts. It never writes first.
 - Incoming messages are marked "seen" after about 1 second, then "typing…" shows for 2–3 seconds before every reply (configurable: `READ_MIN_MS`, `READ_MAX_MS`, `TYPING_MIN_MS`, `TYPING_MAX_MS`).
-- The group link is sent only after the payment is verified. Customers never see a list of all coachings.
+- The group link is sent only after the payment is verified. Customers never see a list of all coachings — a package menu shows only the packages of the one offer whose trigger code they sent.
 
 ## Development
 ```
