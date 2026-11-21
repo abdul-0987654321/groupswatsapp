@@ -39,7 +39,9 @@ async function load() {
   document.getElementById('kpis').innerHTML = [
     ['Mitglieder', k.members], ['Umsatz gesamt', euro(k.revenue)], ['Umsatz diesen Monat', euro(k.revenueMonth)], ['Offene Prüfungen', k.openReviews],
   ].map(([l, v]) => `<div class="card kpi"><div class="label">${l}</div><div class="value">${v}</div></div>`).join('')
-    + (d.category.linkConfigured ? '' : '<div class="banner warn" style="grid-column:1/-1;margin:0">Für dieses Coaching ist noch kein Gruppenlink in config/coachings.json eingetragen.</div>');
+    + (d.category.linkConfigured ? '' : d.category.linkIntentionallyNone
+        ? '<div class="banner" style="grid-column:1/-1;margin:0">Dieses Paket wird bewusst ohne Gruppenlink verkauft – der Zugang wird per PN geschickt.</div>'
+        : '<div class="banner warn" style="grid-column:1/-1;margin:0">Für dieses Coaching ist noch kein Gruppenlink in config/coachings.json eingetragen.</div>');
   const search = document.querySelector('#table input')?.value || '';
   renderPaymentTable(document.getElementById('table'), d.rows, { onChange: () => { load(); window.refreshSummary?.(); } });
   const input = document.querySelector('#table input'); input.value = search; input.dispatchEvent(new Event('input'));

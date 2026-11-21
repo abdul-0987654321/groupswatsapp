@@ -17,7 +17,7 @@
     // overview
     'Bestätigte Mitglieder gesamt': 'Confirmed members (total)', 'Umsatz diesen Monat': 'Revenue this month',
     'Umsatz gesamt': 'Total revenue', 'Umsatz': 'Revenue', 'Mitglieder': 'Members', 'Coachings': 'Coachings',
-    'Mitglieder & Umsatz pro': 'Members & revenue per', '⚠ Kein Gruppenlink eingetragen': '⚠ No group link set',
+    'Mitglieder & Umsatz pro': 'Members & revenue per', '⚠ Kein Gruppenlink eingetragen': '⚠ No group link set', 'Ohne Gruppenlink – Zugang per PN': 'No group link – access by DM', 'Dieses Paket wird bewusst ohne Gruppenlink verkauft – der Zugang wird per PN geschickt.': 'This package is deliberately sold without a group link – access is sent by direct message.',
     // category page
     'Zahlungen': 'Payments', 'CSV exportieren': 'Export CSV', 'Status:': 'Status:', '· Zeile anklicken für Details': '· click a row for details',
     'Für dieses Coaching ist noch kein Gruppenlink in config/coachings.json eingetragen.': 'No group link has been set for this coaching in config/coachings.json yet.',

@@ -5,7 +5,7 @@
  */
 
 const path = require('path');
-const { coachings, getCoaching, CURRENCY, MODE } = require('./config');
+const { coachings, getCoaching, getMenuEntry, CURRENCY, MODE } = require('./config');
 const payments = require('./payments');
 const customers = require('./customers');
 const conversation = require('./conversation');
@@ -24,6 +24,16 @@ const STATUS_INFO = {
 
 const paidAmount = (p) => (typeof p.amount === 'number' ? p.amount : p.expectedAmount || 0);
 const monthOf = (p) => (p.paymentDate || berlinDate(new Date(p.receivedAt))).slice(0, 7);
+
+/**
+ * Whether a coaching sends a group link, and whether a missing one is a problem.
+ * A package sold through a menu may deliberately have no link (the Probestunde gets its
+ * Zoom link by DM instead), so the dashboard must not flag that as a misconfiguration.
+ */
+function linkState(c) {
+  const linkConfigured = Boolean(c.groupLink);
+  return { linkConfigured, linkIntentionallyNone: !linkConfigured && Boolean(getMenuEntry(c.id)) };
+}
 
 function categoryStats(list, id) {
   const ps = list.filter((p) => p.coachingId === id);
@@ -99,7 +109,7 @@ function mount(app) {
 
   app.get('/api/overview', wrap(() => {
     const list = payments.all();
-    const categories = coachings.map((c) => ({ id: c.id, name: c.name, price: c.price, linkConfigured: Boolean(c.groupLink), ...categoryStats(list, c.id) }));
+    const categories = coachings.map((c) => ({ id: c.id, name: c.name, price: c.price, ...linkState(c), ...categoryStats(list, c.id) }));
     const sum = (k) => round(categories.reduce((s, c) => s + c[k], 0));
     return {
       ok: true,
@@ -116,7 +126,7 @@ function mount(app) {
     return {
       ok: true,
       categoryLabel: CATEGORY_LABEL,
-      category: { id: c.id, name: c.name, price: c.price, keywords: c.keywords, linkConfigured: Boolean(c.groupLink) },
+      category: { id: c.id, name: c.name, price: c.price, keywords: c.keywords, ...linkState(c) },
       kpis: categoryStats(list, c.id),
       rows: list.filter((p) => p.coachingId === c.id && p.status !== STATUS.SUPERSEDED).map(row),
     };

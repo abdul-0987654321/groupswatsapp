@@ -72,7 +72,9 @@ async function load() {
       <h3>${esc(c.name)}${c.openReviews ? ` <span class="badge">${c.openReviews} offen</span>` : ''}</h3>
       <div class="price">${euro(c.price)}</div>
       <div class="stats"><div><b>${c.members}</b><span class="muted">Mitglieder</span></div><div><b>${euro(c.revenue)}</b><span class="muted">Umsatz</span></div></div>
-      ${c.linkConfigured ? '' : '<div class="muted" style="margin-top:8px;color:#8a5a00">⚠ Kein Gruppenlink eingetragen</div>'}
+      ${c.linkConfigured ? '' : c.linkIntentionallyNone
+        ? '<div class="muted" style="margin-top:8px">Ohne Gruppenlink – Zugang per PN</div>'
+        : '<div class="muted" style="margin-top:8px;color:#8a5a00">⚠ Kein Gruppenlink eingetragen</div>'}
       <span class="open">Zahlungen ansehen →</span>
     </a>`).join('');
   const maxM = Math.max(1, ...d.categories.map((c) => c.members));
