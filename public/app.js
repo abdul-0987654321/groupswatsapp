@@ -72,11 +72,20 @@ function renderChat(messages) {
   }).join('');
 }
 
-/** Payment table with live search. rows: from the API; opts.showCoaching adds a column. */
+/**
+ * Payment table with live search. rows: from the API; opts.showCoaching adds a column.
+ *
+ * Every cell carries its own visible label (`.cell-label`, hidden on desktop by CSS).
+ * On phones the table turns into one card per payment (see "payment cards" in style.css),
+ * because a seven-column table only showed ID, name and phone there — amount, status and
+ * the review reason were off-screen. The labels are real text nodes, not CSS content, so
+ * the English switch translates them like everything else.
+ */
 function renderPaymentTable(container, rows, { showCoaching = false, onChange } = {}) {
+  const cols = showCoaching ? 8 : 7;
   container.innerHTML = `
     <div class="toolbar"><input type="search" placeholder="Suche nach Name, ID oder Telefon…" aria-label="Suche"><span class="muted count"></span></div>
-    <div class="table-wrap"><table>
+    <div class="table-wrap"><table class="cards">
       <thead><tr><th>ID</th><th>Name</th><th>Telefon</th>${showCoaching ? '<th>Coaching</th>' : ''}<th>Betrag</th><th>Zahlungsdatum</th><th>Status</th></tr></thead>
       <tbody></tbody></table></div>`;
   const tbody = container.querySelector('tbody');
@@ -89,15 +98,17 @@ function renderPaymentTable(container, rows, { showCoaching = false, onChange } 
       [r.id, r.customerId, r.name, r.whatsappName].some((v) => String(v || '').toLowerCase().includes(q)) ||
       (digits.length >= 3 && String(r.phone || '').replace(/\D/g, '').includes(digits)));
     count.textContent = `${shown.length} von ${rows.length}`;
+    const cell = (col, label, value) => `<td data-col="${col}"><span class="cell-label">${label}</span><span class="cell-val">${value}</span></td>`;
     tbody.innerHTML = shown.length ? shown.map((r) => `
       <tr class="clickable" data-id="${esc(r.id)}">
-        <td>${esc(r.customerId)}<div class="muted" style="font-size:12px">${esc(r.id)}</div></td>
-        <td>${esc(r.name)}</td><td>${esc(r.phone)}</td>
-        ${showCoaching ? `<td>${esc(r.coachingName)}</td>` : ''}
-        <td>${euro(r.amount, r.currency)}${r.amount != null && r.amount !== r.expectedAmount ? ` <span class="muted">(soll ${euro(r.expectedAmount, r.currency)})</span>` : ''}</td>
-        <td>${dateDE(r.paymentDate)}</td>
-        <td>${statusPill(r.status)}${r.status === 'NEEDS_REVIEW' && r.reasons.length ? `<div class="muted" style="font-size:12px;white-space:normal;max-width:280px">${esc(r.reasons.join(' · '))}</div>` : ''}</td>
-      </tr>`).join('') : `<tr><td colspan="7"><div class="empty-state"><div class="big">📭</div>Keine Einträge.</div></td></tr>`;
+        ${cell('id', 'ID', `${esc(r.customerId)}<span class="muted sub">${esc(r.id)}</span>`)}
+        ${cell('name', 'Name', esc(r.name))}
+        ${cell('phone', 'Telefon', esc(r.phone))}
+        ${showCoaching ? cell('coaching', 'Coaching', esc(r.coachingName)) : ''}
+        ${cell('amount', 'Betrag', `${euro(r.amount, r.currency)}${r.amount != null && r.amount !== r.expectedAmount ? ` <span class="muted">(soll ${euro(r.expectedAmount, r.currency)})</span>` : ''}`)}
+        ${cell('date', 'Zahlungsdatum', dateDE(r.paymentDate))}
+        ${cell('status', 'Status', `${statusPill(r.status)}${r.status === 'NEEDS_REVIEW' && r.reasons.length ? `<span class="muted reasons-inline">${esc(r.reasons.join(' · '))}</span>` : ''}`)}
+      </tr>`).join('') : `<tr class="empty-row"><td colspan="${cols}"><div class="empty-state"><div class="big">📭</div>Keine Einträge.</div></td></tr>`;
   }
   input.addEventListener('input', draw);
   tbody.addEventListener('click', (e) => {

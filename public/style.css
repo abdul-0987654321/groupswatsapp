@@ -100,6 +100,10 @@ tbody tr.clickable:hover { background: #f5f8ff; }
 .toolbar input { max-width: 360px; }
 .empty-state { text-align: center; padding: 34px 16px; color: var(--muted); }
 .empty-state .big { font-size: 34px; }
+/* per-cell labels: only shown when the table becomes cards on phones */
+.cell-label { display: none; }
+.sub { display: block; font-size: 12px; }
+.reasons-inline { display: block; font-size: 12px; white-space: normal; max-width: 280px; }
 
 /* tiles (one per coaching) */
 .tile { display: block; color: inherit; transition: box-shadow .15s, border-color .15s, transform .15s; }
@@ -220,3 +224,48 @@ body.login-page { min-height: 100vh; display: grid; place-items: center; backgro
 @media (min-width: 901px) { body.layout { background: linear-gradient(to right, var(--side) 236px, var(--bg) 236px); } }
 .tile .stats b { font-size: 18px; overflow-wrap: anywhere; }
 .tile .stats > div { min-width: 0; }
+
+/* ---------- payment cards (phones) ----------
+   A seven-column payment table does not fit a phone: only ID, name and phone were visible,
+   and amount, status and the review reason sat off-screen behind a horizontal scroll nobody
+   finds. Below 760px each row becomes a card with the name as its heading, the status right
+   under it, and the remaining fields as labelled lines. */
+@media (max-width: 760px) {
+  .table-wrap { overflow-x: visible; }
+  table.cards, table.cards tbody, table.cards tr, table.cards td { display: block; width: 100%; }
+  table.cards thead { display: none; }
+  table.cards tr.clickable {
+    display: flex; flex-direction: column; gap: 5px;
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--card);
+    padding: 13px 15px; margin-bottom: 10px; box-shadow: var(--shadow);
+  }
+  table.cards tr.clickable:active { border-color: var(--accent); background: #f5f8ff; }
+  table.cards td {
+    border: none; padding: 0; white-space: normal;
+    display: flex; gap: 12px; align-items: baseline; justify-content: space-between;
+  }
+  table.cards .cell-label {
+    display: block; flex: none; color: var(--muted);
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+  }
+  table.cards .cell-val { text-align: right; min-width: 0; overflow-wrap: anywhere; }
+
+  /* name is the card heading, status sits right under it; both full width, no label */
+  table.cards td[data-col="name"] { order: 1; }
+  table.cards td[data-col="status"] { order: 2; margin-bottom: 4px; }
+  table.cards td[data-col="name"] .cell-label,
+  table.cards td[data-col="status"] .cell-label { display: none; }
+  table.cards td[data-col="name"] .cell-val { font-size: 16px; font-weight: 700; text-align: left; width: 100%; }
+  table.cards td[data-col="status"] .cell-val { text-align: left; width: 100%; }
+  table.cards .reasons-inline { max-width: none; margin-top: 3px; }
+
+  table.cards td[data-col="amount"] { order: 3; }
+  table.cards td[data-col="date"] { order: 4; }
+  table.cards td[data-col="coaching"] { order: 5; }
+  table.cards td[data-col="phone"] { order: 6; }
+  table.cards td[data-col="id"] { order: 7; }
+  table.cards td[data-col="id"] .cell-val { font-size: 12px; color: var(--muted); }
+  table.cards td[data-col="id"] .sub { display: inline; margin-left: 5px; }
+
+  table.cards tr.empty-row, table.cards tr.empty-row td { display: block; border: none; }
+}
