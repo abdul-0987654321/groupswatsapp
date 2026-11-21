@@ -156,6 +156,24 @@ If every check passes, the payment is **VERIFIED** and the link is sent automati
 - Incoming messages are marked "seen" after about 1 second, then "typing…" shows for 2–3 seconds before every reply (configurable: `READ_MIN_MS`, `READ_MAX_MS`, `TYPING_MIN_MS`, `TYPING_MAX_MS`).
 - The group link is sent only after the payment is verified. Customers never see a list of all coachings — a package menu shows only the packages of the one offer whose trigger code they sent.
 
+## Clearing the trial data before launch
+
+A trial run leaves test customers, payments and chat messages in the Google Sheet.
+To empty them without logging WhatsApp out, take `SHEET_WEBHOOK_URL` and `SHEET_SECRET`
+from Render → service → Environment and run:
+
+```
+SHEET_WEBHOOK_URL=... SHEET_SECRET=... node scripts/clear-trial-data.js         # dry run
+SHEET_WEBHOOK_URL=... SHEET_SECRET=... node scripts/clear-trial-data.js --yes   # delete
+```
+
+It empties the `customers`, `payments` and `chat` tabs and keeps their header rows. The
+`session` tab (the WhatsApp login) and `settings` are refused outright, so a typo cannot
+log the bot out. Without `--yes` it only prints what would go.
+
+Payment screenshots live in Google Drive, not in the Sheet: the rows pointing at them are
+removed, the image files stay in the Drive folder and can be deleted by hand.
+
 ## Development
 ```
 npm install
