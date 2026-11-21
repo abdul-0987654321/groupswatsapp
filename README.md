@@ -155,7 +155,8 @@ OpenAI (`gpt-4o-mini`) only reads the receipt fields. The decision is made in co
 
 If every check passes, the payment is **VERIFIED** and the link is sent automatically. If any check fails, it goes to **NEEDS_REVIEW** with a German reason in **Offene Prüfungen**. Nothing is ever rejected automatically.
 
-**Beleg testen** in the dashboard checks a receipt the same way, without saving anything or messaging anyone. From the command line: `node scripts/check-receipts.js <folder> --coaching MAIN` (needs `OPENAI_API_KEY`).
+To check a receipt without saving anything or messaging anyone, use the command line:
+`node scripts/check-receipts.js <folder> --coaching CHEM_KOMPLETT` (needs `OPENAI_API_KEY`).
 
 ## WhatsApp safety rules (built in)
 - Plain text only: no buttons or interactive WhatsApp lists. Package menus (see above) are sent as plain numbered text, because Baileys cannot send interactive lists reliably.

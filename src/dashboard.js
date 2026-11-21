@@ -10,9 +10,7 @@ const payments = require('./payments');
 const customers = require('./customers');
 const conversation = require('./conversation');
 const db = require('./storage/db');
-const { readReceipt } = require('./receipt-reader');
-const { verify, berlinDate } = require('./verify');
-const { fingerprints } = require('./image-hash');
+const { berlinDate } = require('./verify');
 
 const CATEGORY_LABEL = process.env.CATEGORY_LABEL || 'Coaching';
 const { STATUS } = payments;
@@ -83,7 +81,6 @@ function mount(app) {
   app.get('/', page('index.html'));
   app.get('/kategorie/:id', page('kategorie.html'));
   app.get('/pruefungen', page('pruefungen.html'));
-  app.get('/beleg-testen', page('beleg-testen.html'));
   app.get('/chats', page('chats.html'));
 
   // State-changing API calls must be JSON (blocks cross-site form posts).
@@ -264,18 +261,6 @@ function mount(app) {
   app.post('/api/alerts/test', wrap(() => require('./alerts').sendTest()));
 
   // Test a receipt without creating a payment or messaging anyone.
-  app.post('/api/test-receipt', wrap(async (req) => {
-    const { coachingId, mimeType, base64 } = req.body || {};
-    const coaching = getCoaching(coachingId);
-    if (!coaching) throw new Error(`Bitte ${CATEGORY_LABEL} wählen`);
-    if (!base64) throw new Error('Keine Datei');
-    const buffer = Buffer.from(base64, 'base64');
-    const type = mimeType === 'application/pdf' ? 'application/pdf' : mimeType || 'image/jpeg';
-    const fp = await fingerprints(buffer, type);
-    const extracted = await readReceipt(buffer, type, { accounts: require('./config').ACCOUNTS, amount: coaching.price, currency: CURRENCY });
-    const result = verify(extracted, { coaching, receivedAt: new Date().toISOString(), imageHash: fp.imageHash, thumbnail: fp.thumbnail, previousPayments: db.all('payments') });
-    return { ok: true, coaching: { id: coaching.id, name: coaching.name, price: coaching.price }, extracted, ...result };
-  }));
 }
 
 module.exports = { mount, STATUS_INFO };
