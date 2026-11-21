@@ -70,17 +70,20 @@ async function reply(customer, text) {
 
 async function sendGroupLink(customer, payment, { again = false } = {}) {
   const coaching = getCoaching(payment.coachingId);
+  // Packages booked through a menu use that menu's own confirmation wording (client-specified).
+  // A package with no groupLink is deliberate, not a gap: for Chemie only the Komplettpaket
+  // leads into the group, the other packages are arranged with the student directly. So the
+  // confirmation is sent without a link, and never promises one "shortly".
+  const menu = coaching && getMenuForCoaching(coaching.id);
+  if (menu) {
+    await reply(customer, msgs.packageVerified(menu, coaching));
+    if (coaching.groupLink) payments.markLinkSent(payment.id);
+    return true;
+  }
   if (!coaching?.groupLink) {
     log.warn(`No group link configured for ${payment.coachingId} — told ${customer.phone || customer.jid} it follows shortly.`);
     await reply(customer, msgs.verifiedLinkPending());
     return false;
-  }
-  // Packages booked through a menu use that menu's own confirmation wording (client-specified).
-  const menu = getMenuForCoaching(coaching.id);
-  if (menu) {
-    await reply(customer, msgs.packageVerified(menu, coaching));
-    payments.markLinkSent(payment.id);
-    return true;
   }
   await reply(customer, again ? msgs.alreadyVerified(coaching) : msgs.verified(coaching));
   payments.markLinkSent(payment.id);

@@ -44,11 +44,14 @@ test('every coaching is reachable: by keyword, or through a menu', () => {
   }
 });
 
-test('every coaching has a usable group invite link', () => {
+test('group links are either empty on purpose or a valid invite URL', () => {
   const c = loadRealConfig('trial');
   for (const x of c.coachings) {
+    if (x.link === '') continue; // deliberate: only the Komplettpaket leads into the group
     assert.ok(/^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]/.test(x.link), `${x.id} has no valid group link: ${x.link}`);
   }
+  const komplett = c.coachings.find((x) => x.id === 'CHEM_KOMPLETT');
+  assert.ok(komplett && komplett.link, 'the Komplettpaket must have a group link — it is the only package that grants access');
 });
 
 test('menu triggers are unique, and menu texts are complete', () => {

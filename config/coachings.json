@@ -1,7 +1,7 @@
 {
-  "CHEM_PROBE":    { "name": "Chemie Probestunde",     "keywords": [], "price": 5,   "groupLink": "https://chat.whatsapp.com/KxaB4OK7eeT8CCEX30ibVd?s=cl&p=i&iam=2" },
+  "CHEM_PROBE":    { "name": "Chemie Probestunde",     "keywords": [], "price": 5,   "groupLink": "" },
   "CHEM_KOMPLETT": { "name": "Chemie Komplettpaket",   "keywords": [], "price": 100, "groupLink": "https://chat.whatsapp.com/KxaB4OK7eeT8CCEX30ibVd?s=cl&p=i&iam=2" },
-  "CHEM_T1":       { "name": "Chemie Thema 1 bis 5",   "keywords": [], "price": 45,  "groupLink": "https://chat.whatsapp.com/KxaB4OK7eeT8CCEX30ibVd?s=cl&p=i&iam=2" },
-  "CHEM_T2":       { "name": "Chemie Thema 5 bis 10",  "keywords": [], "price": 45,  "groupLink": "https://chat.whatsapp.com/KxaB4OK7eeT8CCEX30ibVd?s=cl&p=i&iam=2" },
-  "CHEM_T3":       { "name": "Chemie Thema 10 bis 15", "keywords": [], "price": 45,  "groupLink": "https://chat.whatsapp.com/KxaB4OK7eeT8CCEX30ibVd?s=cl&p=i&iam=2" }
+  "CHEM_T1":       { "name": "Chemie Thema 1 bis 5",   "keywords": [], "price": 45,  "groupLink": "" },
+  "CHEM_T2":       { "name": "Chemie Thema 5 bis 10",  "keywords": [], "price": 45,  "groupLink": "" },
+  "CHEM_T3":       { "name": "Chemie Thema 10 bis 15", "keywords": [], "price": 45,  "groupLink": "" }
 }

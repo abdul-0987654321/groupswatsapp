@@ -34,12 +34,21 @@ async function englishHarness(receipt) {
 }
 
 test('English: 812 → menu → package → receipt → confirmation + link', async () => {
-  const h = await englishHarness(goodReceipt(45));
+  const h = await englishHarness(goodReceipt(100));
   const jid = h.phoneJid(1);
   assert.deepStrictEqual(await h.say(h.textMsg(jid, '812')), [MENU_EN]);
-  assert.deepStrictEqual(await h.say(h.textMsg(jid, '3')), [ASK_EN]);
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, '2')), [ASK_EN]);
   assert.deepStrictEqual(await h.say(h.imageMsg(jid, await img(1))), [CONFIRMED_EN]);
-  assert.strictEqual(h.payments.latestVerified(jid).coachingId, 'CHEM_T1');
+  assert.strictEqual(h.payments.latestVerified(jid).coachingId, 'CHEM_KOMPLETT');
+});
+
+test('English: only the Komplettpaket receives the link', async () => {
+  const h = await englishHarness(goodReceipt(45));
+  const jid = h.phoneJid(6);
+  await h.say(h.textMsg(jid, '812'));
+  await h.say(h.textMsg(jid, '3'));
+  const [out] = await h.say(h.imageMsg(jid, await img(6)));
+  assert.strictEqual(out, 'Perfect, you are now registered for the tutoring, thank you very much!');
 });
 
 test('English: the trigger and the package keywords are the same in both languages', async () => {
