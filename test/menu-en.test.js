@@ -12,7 +12,7 @@ const OPTIONS_EN =
   '   (everything included)\n' +
   '3. First half (units 1–5) – 50 €\n' +
   '4. Second half (units 6–10) – 50 €';
-const MENU_EN = `Hey, which package would you like to choose?\n\n${OPTIONS_EN}`;
+const MENU_EN = `Hey, which package would you like to choose? Just send me a number from 1-4\n\n${OPTIONS_EN}`;
 const ASK_EN =
   'Please send me the payment receipt now. You can simply send a screenshot of the bank transfer as an image here.';
 const LINK = 'https://chat.whatsapp.com/KxaB4OK7eeT8CCEX30ibVd?s=cl&p=i&iam=2';

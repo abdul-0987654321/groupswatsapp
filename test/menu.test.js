@@ -21,7 +21,7 @@ const OPTIONS =
   '   (alles mit drin)\n' +
   '3. Erste Hälfte (Einheiten 1–5) – 50 €\n' +
   '4. Zweite Hälfte (Einheiten 6–10) – 50 €';
-const MENU = `Hey, welches Paket möchtest du wählen?\n\n${OPTIONS}`;
+const MENU = `Hey, welches Paket möchtest du wählen? Schreibe mir eine Zahl von 1-4\n\n${OPTIONS}`;
 const RETRY = `Bitte antworte einfach mit der Nummer des Pakets (1–4).\n\n${OPTIONS}`;
 const ASK_RECEIPT =
   'Schick mir jetzt bitte den Zahlungsbeleg. Du kannst einfach einen Screenshot von der Überweisung als Bild hier reinschicken.';
