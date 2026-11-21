@@ -151,7 +151,7 @@ async function askAI(text) {
  */
 async function classifyPaidCustomer(text, ownedNames) {
   const client = ai.getClient();
-  if (!client) return 'UNKNOWN';
+  if (!client || !detectableCoachings.length) return 'UNKNOWN';
   const codes = detectableCoachings.map((c) => c.id);
   const options = detectableCoachings.map((c) => `${c.id} = ${c.name} (Stichwörter: ${c.keywords.join(', ')})`).join('\n');
   try {
@@ -229,6 +229,8 @@ function detectPackage(menu, text) {
 async function detectCoaching(text, { useAI = true } = {}) {
   const hits = keywordMatches(text);
   if (hits.length === 1) return { id: hits[0], source: 'keyword' };
+  // Nothing to detect: every coaching sits behind a menu, so the AI has no code to answer with.
+  if (!detectableCoachings.length) return { id: null, source: 'none' };
   if (!useAI || isOnlyGreeting(text)) return { id: null, source: 'none' };
   const code = await askAI(text);
   if (code === 'NOT_OFFERED') return { id: null, source: 'ai', notOffered: true };

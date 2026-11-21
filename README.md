@@ -4,7 +4,10 @@ A WhatsApp bot (Baileys) for paid coachings. Customers message the number privat
 
 ## Change prices, keywords and group links
 
-**`config/coachings.json` is the only file you need to edit:**
+**`config/coachings.json` is the only file you need to edit.** It currently holds the five
+Chemie Nachhilfe packages, which customers reach through the trigger code `812` (see
+"Package menus" below). The example here shows the general shape, with standalone
+coachings that customers reach by keyword:
 
 ```json
 {
@@ -22,7 +25,11 @@ A WhatsApp bot (Baileys) for paid coachings. Customers message the number privat
 | `price` | Price in EUR. The amount on the receipt must equal this exactly. |
 | `groupLink` | WhatsApp group invite link. If it's empty, a verified customer is told the link follows shortly. They get it automatically the next time they write, or when you click "Link erneut senden" in the dashboard. |
 
-You can add or remove coachings. The key (`C1`, `MAIN`, …) is the internal code and should not change once payments exist for it. The dashboard creates a tile for every entry.
+You can add or remove coachings. The key (`C1`, `MAIN`, …) is the internal code and should not change once payments exist for it; do not reuse a key that older payments still point at.
+
+If every coaching sits behind a menu — as it does now — the bot cannot ask "which coaching?",
+because no answer would match. A customer who writes anything else is asked for the code from
+the announcement instead, and OpenAI is never called for detection. The dashboard creates a tile for every entry.
 
 **How to apply a change:** edit the file on GitHub (pencil icon → "Commit changes"). Render redeploys automatically in about 2–3 minutes. WhatsApp reconnects from the stored session, so no new QR code is needed, and conversations in progress are kept.
 

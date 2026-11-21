@@ -10,7 +10,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const COACHINGS_FILE = path.join(__dirname, '..', 'config', 'coachings.json');
+const COACHINGS_FILE = process.env.COACHINGS_FILE || path.join(__dirname, '..', 'config', 'coachings.json'); // env override for tests
 const MENUS_FILE = process.env.MENUS_FILE || path.join(__dirname, '..', 'config', 'menus.json'); // env override for tests
 const PAYMENT_FILE = process.env.PAYMENT_FILE || path.join(__dirname, '..', 'config', 'payment.json'); // env override for tests
 

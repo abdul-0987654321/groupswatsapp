@@ -55,6 +55,8 @@ const TEXTS = {
     packageMenuRetry: (menu) => `${menu.texts.de.retry || menu.texts.de.intro}\n\n${menuOptions(menu, 'de')}`,
     packageRequestReceipt: (menu) => menu.texts.de.requestReceipt,
     packageVerified: (menu, c) => `${menu.texts.de.verified}${c.groupLink ? `\n\n${c.groupLink}` : ''}`,
+    // Used when every coaching sits behind a menu, so there is no coaching name to ask for.
+    askCode: () => 'Hallo! Schick mir bitte den Code aus der Ankündigung, dann zeige ich dir die passenden Pakete.',
   },
   en: {
     welcome: () => 'Welcome! Which coaching are you interested in?',
@@ -89,6 +91,7 @@ const TEXTS = {
     packageMenuRetry: (menu) => `${menu.texts.en.retry || menu.texts.en.intro}\n\n${menuOptions(menu, 'en')}`,
     packageRequestReceipt: (menu) => menu.texts.en.requestReceipt,
     packageVerified: (menu, c) => `${menu.texts.en.verified}${c.groupLink ? `\n\n${c.groupLink}` : ''}`,
+    askCode: () => 'Hello! Please send me the code from the announcement and I will show you the matching packages.',
   },
 };
 

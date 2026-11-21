@@ -16,7 +16,7 @@ const log = require('./log');
 const msgs = require('./messages');
 const customers = require('./customers');
 const payments = require('./payments');
-const { getCoaching, getMenuForCoaching, getMenu } = require('./config');
+const { getCoaching, getMenuForCoaching, getMenu, detectableCoachings } = require('./config');
 const { detectCoaching, detectMenu, detectPackage, classifyPaidCustomer, keywordMatches, isOnlyGreeting, isOnlyThanks, isYes, isNo, isConfirm, wantsChange } = require('./coaching-detect');
 const alerts = require('./alerts');
 const settings = require('./settings');
@@ -303,6 +303,15 @@ async function handleMessage(msg) {
 
 /** Customer hasn't chosen a coaching yet. Never lists the coachings. */
 async function handleAskStage(customer, text, isFirst) {
+  // Every coaching behind a menu: asking "which coaching?" would be unanswerable, so point
+  // the customer at the code from the announcement instead. (A trigger in the message was
+  // already handled before the stage switch.)
+  if (!detectableCoachings.length) {
+    customer.stage = STAGES.ASK_COACHING;
+    customer.askCount = 0;
+    customers.save(customer);
+    return reply(customer, msgs.askCode());
+  }
   const { id, notOffered, source } = text ? await detectCoaching(text) : { id: null };
   // Already paid for that coaching → just send that link again (no second payment).
   if (id && payments.verifiedFor(customer.jid, id)) return chooseCoaching(customer, id);
