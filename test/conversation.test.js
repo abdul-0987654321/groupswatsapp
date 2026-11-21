@@ -3,17 +3,17 @@ const test = require('node:test');
 const assert = require('node:assert');
 const sharp = require('sharp');
 const { createHarness } = require('./helpers/harness');
-const { coachings } = require('../src/config');
+const { coachings, BANK } = require('../src/config');
 
 const PRICE_C2 =
   'Das Money Coaching kostet 80 €. Bitte überweise an:\n' +
   'Empfänger: Ilyas Lang\n' +
-  'IBAN: DE85 5505 0120 1200 6021 16\n' +
+  `IBAN: ${BANK.account}\n` +
   'Verwendungszweck: Dein Name + Money Coaching\n' +
   'Schick mir danach einen Screenshot deiner Überweisung.';
 
 const goodReceipt = (amount, extra = {}) => ({
-  isPaymentReceipt: true, recipientName: 'Ilyas Lang', recipientIban: 'DE85 5505 0120 1200 6021 16', amount, currency: 'EUR',
+  isPaymentReceipt: true, recipientName: 'Ilyas Lang', recipientIban: BANK.account, amount, currency: 'EUR',
   date: 'Heute', time: null, senderName: 'Max Muster', reference: 'Max Muster Coaching', bankApp: 'Sparkasse', ...extra,
 });
 // Distinct random-noise images (deterministic per seed), so they never look like duplicates.
@@ -221,7 +221,7 @@ test('bot language switch: English replies, setting stored', async () => {
   assert.deepStrictEqual(await h.say(h.textMsg(jid, 'Hello')), ['Welcome! Which coaching are you interested in?']);
   assert.strictEqual(h.aiCalls.classify, 0, 'English greeting must not call the AI');
   assert.deepStrictEqual(await h.say(h.textMsg(jid, 'I want the money coaching')), [
-    'The Money Coaching costs 80 €. Please transfer to:\nRecipient: Ilyas Lang\nIBAN: DE85 5505 0120 1200 6021 16\nReference: Your name + Money Coaching\nThen send me a screenshot of your transfer.',
+    `The Money Coaching costs 80 €. Please transfer to:\nRecipient: Ilyas Lang\nIBAN: ${BANK.account}\nReference: Your name + Money Coaching\nThen send me a screenshot of your transfer.`,
   ]);
   assert.strictEqual(h.db.get('settings', 'botLanguage').value, '"en"');
   assert.throws(() => settings.set('botLanguage', 'fr'), /Ungültiger Wert/);

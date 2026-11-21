@@ -13,6 +13,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const sharp = require('sharp');
 const { createHarness } = require('./helpers/harness');
+const { BANK } = require('../src/config');
 
 const OPTIONS =
   '1. Probestunde (Einheit 1) – 5 €\n' +
@@ -23,8 +24,10 @@ const OPTIONS =
   '4. Zweite Hälfte (Einheiten 6–10) – 50 €';
 const MENU = `Hey, welches Paket möchtest du wählen? Schreibe mir eine Zahl von 1-4\n\n${OPTIONS}`;
 const RETRY = `Bitte antworte einfach mit der Nummer des Pakets (1–4).\n\n${OPTIONS}`;
-const ASK_RECEIPT =
-  'Schick mir jetzt bitte den Zahlungsbeleg. Du kannst einfach einen Screenshot von der Überweisung als Bild hier reinschicken.';
+
+const askReceipt = (paket) =>
+  'Schick mir jetzt bitte den Zahlungsbeleg. Du kannst einfach einen Screenshot von der Überweisung als Bild hier reinschicken.\n\n' +
+  `Name: Ilyas Lang\nIBAN: ${BANK.account}\n\nVerwendungszweck: Chemie Packet ${paket}`;
 const LINK = 'https://chat.whatsapp.com/KxaB4OK7eeT8CCEX30ibVd?s=cl&p=i&iam=2';
 const CONFIRMED = `Perfekt, du bist für die Nachhilfe freigeschaltet, vielen Dank!\n\n${LINK}`;
 const PROBE_CONFIRMED =
@@ -34,7 +37,7 @@ const PROBE_CONFIRMED =
 const PACKAGES = { 1: ['CHEM_PROBE', 5], 2: ['CHEM_KOMPLETT', 100], 3: ['CHEM_H1', 50], 4: ['CHEM_H2', 50] };
 
 const goodReceipt = (amount, extra = {}) => ({
-  isPaymentReceipt: true, recipientName: 'Ilyas Lang', recipientIban: 'DE85 5505 0120 1200 6021 16', amount, currency: 'EUR',
+  isPaymentReceipt: true, recipientName: 'Ilyas Lang', recipientIban: BANK.account, amount, currency: 'EUR',
   date: 'Heute', time: null, senderName: 'Max Muster', reference: 'Max Muster Chemie', bankApp: 'Sparkasse', ...extra,
 });
 const img = (seed) => {
@@ -81,15 +84,34 @@ test('the Probestunde confirmation promises the Zoom link by DM, not the group',
   assert.ok(!/kürze|shortly/i.test(out), 'must not promise a group link later');
 });
 
-test('the receipt request never contains bank details (they are in the group announcement)', async () => {
-  const h = await withReceipt(goodReceipt(5));
-  const jid = h.phoneJid(12);
-  await h.say(h.textMsg(jid, '812'));
-  const [ask] = await h.say(h.textMsg(jid, '1'));
-  assert.strictEqual(ask, ASK_RECEIPT);
-  for (const secret of ['IBAN', 'DE85', 'Empfänger', 'Verwendungszweck']) {
-    assert.ok(!ask.includes(secret), `receipt request leaks "${secret}"`);
+test('the receipt request shows the bank details, with the chosen package number', async () => {
+  for (const paket of ['1', '2', '3', '4']) {
+    const h = await withReceipt(goodReceipt(5));
+    const jid = h.phoneJid(50 + Number(paket));
+    await h.say(h.textMsg(jid, '812'));
+    const [ask] = await h.say(h.textMsg(jid, paket));
+    assert.strictEqual(ask, askReceipt(paket));
   }
+});
+
+test('the IBAN shown to the customer is the one payments are verified against', async () => {
+  // If these ever drift apart, every transfer fails as "Empfänger-IBAN stimmt nicht".
+  const h = await withReceipt(goodReceipt(100));
+  const jid = h.phoneJid(60);
+  await h.say(h.textMsg(jid, '812'));
+  const [ask] = await h.say(h.textMsg(jid, '2'));
+  const shown = ask.match(/IBAN:\s*(.+)/)[1].trim();
+  assert.strictEqual(shown, BANK.account, 'the message must use the IBAN from config/payment.json, never a hard-coded one');
+  assert.ok(ask.includes(BANK.recipient), 'the recipient name must come from config too');
+});
+
+test('a payment to the IBAN we advertise actually verifies', async () => {
+  const h = await withReceipt(goodReceipt(100, { recipientIban: BANK.account }));
+  const jid = h.phoneJid(61);
+  await h.say(h.textMsg(jid, '812'));
+  await h.say(h.textMsg(jid, '2'));
+  const [out] = await h.say(h.imageMsg(jid, await img(61)));
+  assert.strictEqual(out, CONFIRMED, 'a transfer to the advertised IBAN must pass verification');
 });
 
 test('no link or confirmation before the payment is verified', async () => {

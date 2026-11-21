@@ -10,13 +10,13 @@
     "texts": {
       "de": {
         "intro": "Hey, welches Paket möchtest du wählen? Schreibe mir eine Zahl von 1-4",
-        "requestReceipt": "Schick mir jetzt bitte den Zahlungsbeleg. Du kannst einfach einen Screenshot von der Überweisung als Bild hier reinschicken.",
+        "requestReceipt": "Schick mir jetzt bitte den Zahlungsbeleg. Du kannst einfach einen Screenshot von der Überweisung als Bild hier reinschicken.\n\nName: {recipient}\nIBAN: {iban}\n\nVerwendungszweck: Chemie Packet {paket}",
         "verified": "Perfekt, du bist für die Nachhilfe freigeschaltet, vielen Dank!",
         "retry": "Bitte antworte einfach mit der Nummer des Pakets (1–4)."
       },
       "en": {
         "intro": "Hey, which package would you like to choose? Just send me a number from 1-4",
-        "requestReceipt": "Please send me the payment receipt now. You can simply send a screenshot of the bank transfer as an image here.",
+        "requestReceipt": "Please send me the payment receipt now. You can simply send a screenshot of the bank transfer as an image here.\n\nName: {recipient}\nIBAN: {iban}\n\nReference: Chemie Packet {paket}",
         "verified": "Perfect, you are now registered for the tutoring, thank you very much!",
         "retry": "Please just reply with the number of the package (1–4)."
       }

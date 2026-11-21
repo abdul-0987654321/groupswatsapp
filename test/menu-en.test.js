@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const sharp = require('sharp');
 const { createHarness } = require('./helpers/harness');
+const { BANK } = require('../src/config');
 
 const OPTIONS_EN =
   '1. Trial lesson (unit 1) – 5 €\n' +
@@ -13,15 +14,17 @@ const OPTIONS_EN =
   '3. First half (units 1–5) – 50 €\n' +
   '4. Second half (units 6–10) – 50 €';
 const MENU_EN = `Hey, which package would you like to choose? Just send me a number from 1-4\n\n${OPTIONS_EN}`;
-const ASK_EN =
-  'Please send me the payment receipt now. You can simply send a screenshot of the bank transfer as an image here.';
+
+const askEn = (paket) =>
+  'Please send me the payment receipt now. You can simply send a screenshot of the bank transfer as an image here.\n\n' +
+  `Name: Ilyas Lang\nIBAN: ${BANK.account}\n\nReference: Chemie Packet ${paket}`;
 const LINK = 'https://chat.whatsapp.com/KxaB4OK7eeT8CCEX30ibVd?s=cl&p=i&iam=2';
 const CONFIRMED_EN = `Perfect, you are now registered for the tutoring, thank you very much!\n\n${LINK}`;
 const PROBE_EN =
   'Thank you for your booking, you will receive the Zoom link up to 1 hour before the appointment by direct message';
 
 const goodReceipt = (amount) => ({
-  isPaymentReceipt: true, recipientName: 'Ilyas Lang', recipientIban: 'DE85 5505 0120 1200 6021 16', amount, currency: 'EUR',
+  isPaymentReceipt: true, recipientName: 'Ilyas Lang', recipientIban: BANK.account, amount, currency: 'EUR',
   date: 'Heute', time: null, senderName: 'Max Muster', reference: 'Max Muster Chemie', bankApp: 'Sparkasse',
 });
 const img = (seed) => {
@@ -40,7 +43,7 @@ test('English: 812 → menu → package → receipt → confirmation + link', as
   const h = await englishHarness(goodReceipt(100));
   const jid = h.phoneJid(1);
   assert.deepStrictEqual(await h.say(h.textMsg(jid, '812')), [MENU_EN]);
-  assert.deepStrictEqual(await h.say(h.textMsg(jid, '2')), [ASK_EN]);
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, '2')), [askEn('2')]);
   assert.deepStrictEqual(await h.say(h.imageMsg(jid, await img(1))), [CONFIRMED_EN]);
   assert.strictEqual(h.payments.latestVerified(jid).coachingId, 'CHEM_KOMPLETT');
 });
@@ -70,7 +73,7 @@ test('English: the trigger and the package keywords work the same', async () => 
   const h = await englishHarness(goodReceipt(5));
   const jid = h.phoneJid(3);
   await h.say(h.textMsg(jid, '812'));
-  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'trial')), [ASK_EN]);
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'trial')), [askEn('1')]);
 });
 
 test('English: a wrong amount still goes to review, in English', async () => {

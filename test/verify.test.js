@@ -2,12 +2,14 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { verify, resolveDate, ibanMatches, nameMatches, senderFromReference } = require('../src/verify');
-const { getCoaching } = require('../src/config');
+const { BANK, getCoaching } = require('../src/config');
+const IBAN = BANK.account;        // the account payments are verified against
+const P = IBAN.split(' ');        // groups, for building masked variants
 
 const MAIN = getCoaching('MAIN');
 const RECEIVED = '2026-10-05T16:35:00+02:00';
 const base = {
-  isPaymentReceipt: true, recipientName: 'Ilyas Lang', recipientIban: 'DE85 5505 0120 1200 6021 16', amount: 90, currency: 'EUR',
+  isPaymentReceipt: true, recipientName: 'Ilyas Lang', recipientIban: IBAN, amount: 90, currency: 'EUR',
   date: '2026-10-05', time: '16:31', senderName: 'Max Muster', reference: 'Package 4, MAX MUSTER', bankApp: 'Sparkasse',
 };
 const run = (over, ctx = {}) => verify({ ...base, ...over }, { coaching: MAIN, receivedAt: RECEIVED, previousPayments: [], ...ctx });
@@ -19,11 +21,11 @@ test('all checks pass → VERIFIED', () => {
 });
 
 test('recipient: IBAN with/without spaces, masked IBAN, or name in any order/case', () => {
-  assert.strictEqual(ibanMatches('DE85550501201200602116'), true);
-  assert.strictEqual(ibanMatches('de85 5505 0120 1200 6021 16'), true);
-  assert.strictEqual(ibanMatches('DE85 **** **** **** 6021 16'), true);
-  assert.strictEqual(ibanMatches('DE85 •••• 6021 16'), true);
-  assert.strictEqual(ibanMatches('DE12 **** **** **** 6021 16'), false);
+  assert.strictEqual(ibanMatches(IBAN.replace(/\s/g, '')), true);
+  assert.strictEqual(ibanMatches(IBAN.toLowerCase()), true);
+  assert.strictEqual(ibanMatches(`${P[0]} **** **** **** ${P[4]} ${P[5]}`), true);
+  assert.strictEqual(ibanMatches(`${P[0]} •••• ${P[4]} ${P[5]}`), true);
+  assert.strictEqual(ibanMatches(`DE12 **** **** **** ${P[4]} ${P[5]}`), false);
   assert.strictEqual(nameMatches('ILYAS LANG'), true);
   assert.strictEqual(nameMatches('Lang, Ilyas'), true);
   assert.strictEqual(nameMatches('Ilyas'), false);

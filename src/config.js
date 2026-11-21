@@ -79,12 +79,13 @@ function loadMenus() {
   if (!fs.existsSync(MENUS_FILE)) return [];
   const raw = JSON.parse(fs.readFileSync(MENUS_FILE, 'utf8'));
   return Object.entries(raw).map(([id, m]) => {
-    const options = (m.options || []).map((o) => {
+    const options = (m.options || []).map((o, i) => {
       const coaching = coachings.find((c) => c.id === o.id);
       if (!coaching) throw new Error(`config/menus.json: "${id}" refers to unknown coaching "${o.id}"`);
       const lang2 = (v, fallback) => (v ? Object.freeze({ de: String(v.de ?? fallback), en: String(v.en ?? v.de ?? fallback) }) : null);
       return Object.freeze({
         id: o.id,
+        number: i + 1, // the number the customer answers with
         coaching,
         label: lang2(o.label, coaching.name) || Object.freeze({ de: coaching.name, en: coaching.name }),
         // optional second line under the menu entry, e.g. "alles mit drin"

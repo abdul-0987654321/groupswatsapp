@@ -22,8 +22,29 @@ const menuOptions = (menu, lang) =>
     .map((o, i) => `${i + 1}. ${o.label[lang]} – ${price(o.coaching)}` + (o.note?.[lang] ? `\n   (${o.note[lang]})` : ''))
     .join('\n');
 
-/** A package may override the menu's wording; otherwise the menu's own text is used. */
-const packageText = (entry, lang, key) => entry.option.texts[lang]?.[key] || entry.menu.texts[lang][key];
+/**
+ * A package may override the menu's wording; otherwise the menu's own text is used.
+ *
+ * Placeholders are filled from config, never typed into menus.json: {recipient}, {iban},
+ * {bic}, {bank}, {paket} (the menu number), {preis}. Bank details in particular MUST come
+ * from config/payment.json — the same values verify.js checks the receipt against. A hand-
+ * typed IBAN in the message would be shown to customers while payments were verified against
+ * a different one, and every single transfer would fail as "Empfänger-IBAN stimmt nicht".
+ */
+const packageText = (entry, lang, key) => {
+  const raw = entry.option.texts[lang]?.[key] || entry.menu.texts[lang][key];
+  const vars = {
+    recipient: BANK.recipient,
+    iban: BANK.account,
+    account: BANK.account,
+    bic: BANK.bic || '',
+    bank: BANK.bankName || '',
+    paket: String(entry.option.number),
+    preis: price(entry.option.coaching),
+    price: price(entry.option.coaching),
+  };
+  return String(raw).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
+};
 
 const TEXTS = {
   de: {

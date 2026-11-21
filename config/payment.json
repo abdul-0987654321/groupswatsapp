@@ -3,9 +3,7 @@
   "trial": {
     "recipient": "Ilyas Lang",
     "accountType": "iban",
-    "account": "DE85 5505 0120 1200 6021 16",
-    "bic": "MALADE51MNZ",
-    "bankName": "Sparkasse Mainz",
+    "account": "DE51 5535 0010 0023 0544 64",
     "currency": "EUR",
     "prices": {
       "CHEM_PROBE": 1,
@@ -18,9 +16,7 @@
   "live": {
     "recipient": "Ilyas Lang",
     "accountType": "iban",
-    "account": "DE85 5505 0120 1200 6021 16",
-    "bic": "MALADE51MNZ",
-    "bankName": "Sparkasse Mainz",
+    "account": "DE51 5535 0010 0023 0544 64",
     "currency": "EUR",
     "timezone": "Europe/Berlin"
   },
