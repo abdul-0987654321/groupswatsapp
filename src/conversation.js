@@ -16,7 +16,7 @@ const log = require('./log');
 const msgs = require('./messages');
 const customers = require('./customers');
 const payments = require('./payments');
-const { getCoaching, getMenuForCoaching, getMenu, detectableCoachings } = require('./config');
+const { getCoaching, getMenuEntry, getMenu, detectableCoachings } = require('./config');
 const { detectCoaching, detectMenu, detectPackage, classifyPaidCustomer, keywordMatches, isOnlyGreeting, isOnlyThanks, isYes, isNo, isConfirm, wantsChange } = require('./coaching-detect');
 const alerts = require('./alerts');
 const settings = require('./settings');
@@ -74,9 +74,9 @@ async function sendGroupLink(customer, payment, { again = false } = {}) {
   // A package with no groupLink is deliberate, not a gap: for Chemie only the Komplettpaket
   // leads into the group, the other packages are arranged with the student directly. So the
   // confirmation is sent without a link, and never promises one "shortly".
-  const menu = coaching && getMenuForCoaching(coaching.id);
-  if (menu) {
-    await reply(customer, msgs.packageVerified(menu, coaching));
+  const entry = coaching && getMenuEntry(coaching.id);
+  if (entry) {
+    await reply(customer, msgs.packageVerified(entry, coaching));
     if (coaching.groupLink) payments.markLinkSent(payment.id);
     return true;
   }
@@ -119,8 +119,8 @@ async function startCoaching(customer, coaching) {
   customers.save(customer);
   // Menu packages: the price and bank details were already in the group announcement,
   // so the bot only asks for the receipt (client-specified wording).
-  const menu = getMenuForCoaching(coaching.id);
-  await reply(customer, menu ? msgs.packageRequestReceipt(menu) : msgs.price(coaching));
+  const entry = getMenuEntry(coaching.id);
+  await reply(customer, entry ? msgs.packageRequestReceipt(entry) : msgs.price(coaching));
 }
 
 /** A trigger code like "812" was recognised: show that menu's numbered packages. */
@@ -250,8 +250,8 @@ async function handleMessage(msg) {
       }
       // "Hi" again → repeat price + bank details, they may have lost them.
       if (isOnlyGreeting(text)) {
-        const menu = getMenuForCoaching(current.id);
-        return reply(customer, menu ? msgs.packageRequestReceipt(menu) : msgs.price(current));
+        const entry = getMenuEntry(current.id);
+        return reply(customer, entry ? msgs.packageRequestReceipt(entry) : msgs.price(current));
       }
       return reply(customer, msgs.remindScreenshot(current));
     }

@@ -63,16 +63,21 @@ messages the code, and the bot shows a numbered list to pick from.
 | `keywords` | Words that also open the menu ("Chemie"), matched anywhere in the message. |
 | `texts` | Exactly what the customer reads, per language. Change the wording here, never in the code. `intro` is followed by the numbered list, which code builds from the options and the prices in `coachings.json`. |
 | `options` | The packages, in the order they are numbered. Each `id` must exist in `coachings.json` (that's where its price and group link live). Per-option `keywords` are optional; a customer can always just answer with the number. |
+| `options[].note` | Optional second line under a menu entry, e.g. `"alles mit drin"`. |
+| `options[].texts` | Optional wording for this one package, overriding the menu's. Used for the Probestunde, which is confirmed with a Zoom-link promise instead of the group link. |
 
 Each package is an ordinary coaching entry in `coachings.json`, so prices, group links, receipt
 checking, the review queue and the dashboard all work exactly as for any other coaching. Several
-packages may share one `groupLink`. **Packages are reachable only through their menu** — never by
+packages may share one `groupLink`, and a package with an empty `groupLink` is confirmed without
+one — deliberately, for packages that are not sold with group access. **Packages are reachable only through their menu** — never by
 keyword or by the AI — so the bot still never reveals everything on offer.
 
 Payments are checked as strictly as everywhere else: the amount must match the package the customer
 picked, and anything unclear goes to **Offene Prüfungen** instead of granting access. Where several
 packages cost the same, the receipt cannot tell them apart — the package recorded is the one the
-customer selected.
+customer selected. One consequence worth knowing: if the same person buys both 50 € halves on the
+same day, the second receipt is flagged as a possible duplicate and lands in the review queue, which
+is the intended behaviour.
 
 Menus are optional: delete `config/menus.json` and the bot behaves as it did before.
 

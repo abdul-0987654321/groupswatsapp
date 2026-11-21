@@ -5,17 +5,20 @@ const assert = require('node:assert');
 const sharp = require('sharp');
 const { createHarness } = require('./helpers/harness');
 
-const MENU_EN =
-  'Hey, which package would you like to choose?\n\n' +
-  '1. Trial lesson – 5 €\n' +
-  '2. Complete package – 100 €\n' +
-  '3. Topics 1 to 5 – 45 €\n' +
-  '4. Topics 5 to 10 – 45 €\n' +
-  '5. Topics 10 to 15 – 45 €';
+const OPTIONS_EN =
+  '1. Trial lesson (unit 1) – 5 €\n' +
+  '   (to have a look and try it out)\n' +
+  '2. Complete package (all 10 units / 20 hours) – 100 €\n' +
+  '   (everything included)\n' +
+  '3. First half (units 1–5) – 50 €\n' +
+  '4. Second half (units 6–10) – 50 €';
+const MENU_EN = `Hey, which package would you like to choose?\n\n${OPTIONS_EN}`;
 const ASK_EN =
   'Please send me the payment receipt now. You can simply send a screenshot of the bank transfer as an image here.';
 const LINK = 'https://chat.whatsapp.com/KxaB4OK7eeT8CCEX30ibVd?s=cl&p=i&iam=2';
 const CONFIRMED_EN = `Perfect, you are now registered for the tutoring, thank you very much!\n\n${LINK}`;
+const PROBE_EN =
+  'Thank you for your booking, you will receive the Zoom link up to 1 hour before the appointment by direct message';
 
 const goodReceipt = (amount) => ({
   isPaymentReceipt: true, recipientName: 'Ilyas Lang', recipientIban: 'DE85 5505 0120 1200 6021 16', amount, currency: 'EUR',
@@ -42,44 +45,55 @@ test('English: 812 → menu → package → receipt → confirmation + link', as
   assert.strictEqual(h.payments.latestVerified(jid).coachingId, 'CHEM_KOMPLETT');
 });
 
-test('English: only the Komplettpaket receives the link', async () => {
-  const h = await englishHarness(goodReceipt(45));
-  const jid = h.phoneJid(6);
-  await h.say(h.textMsg(jid, '812'));
-  await h.say(h.textMsg(jid, '3'));
-  const [out] = await h.say(h.imageMsg(jid, await img(6)));
-  assert.strictEqual(out, 'Perfect, you are now registered for the tutoring, thank you very much!');
-});
-
-test('English: the trigger and the package keywords are the same in both languages', async () => {
+test('English: the trial lesson gets its own Zoom wording and no group link', async () => {
   const h = await englishHarness(goodReceipt(5));
   const jid = h.phoneJid(2);
+  await h.say(h.textMsg(jid, '812'));
+  await h.say(h.textMsg(jid, '1'));
+  const [out] = await h.say(h.imageMsg(jid, await img(2)));
+  assert.strictEqual(out, PROBE_EN);
+});
+
+test('English: both halves receive the group link', async () => {
+  for (const [option, id] of [['3', 'CHEM_H1'], ['4', 'CHEM_H2']]) {
+    const h = await englishHarness(goodReceipt(50));
+    const jid = h.phoneJid(10 + Number(option));
+    await h.say(h.textMsg(jid, '812'));
+    await h.say(h.textMsg(jid, option));
+    const [out] = await h.say(h.imageMsg(jid, await img(10 + Number(option))));
+    assert.strictEqual(out, CONFIRMED_EN);
+    assert.strictEqual(h.payments.latestVerified(jid).coachingId, id);
+  }
+});
+
+test('English: the trigger and the package keywords work the same', async () => {
+  const h = await englishHarness(goodReceipt(5));
+  const jid = h.phoneJid(3);
   await h.say(h.textMsg(jid, '812'));
   assert.deepStrictEqual(await h.say(h.textMsg(jid, 'trial')), [ASK_EN]);
 });
 
 test('English: a wrong amount still goes to review, in English', async () => {
   const h = await englishHarness(goodReceipt(5)); // 5 € for the 100 € package
-  const jid = h.phoneJid(3);
+  const jid = h.phoneJid(4);
   await h.say(h.textMsg(jid, '812'));
   await h.say(h.textMsg(jid, '2'));
-  const out = await h.say(h.imageMsg(jid, await img(2)));
+  const out = await h.say(h.imageMsg(jid, await img(4)));
   assert.deepStrictEqual(out, ['Thank you! Your payment is being checked. You will hear from us shortly.']);
   assert.strictEqual(h.payments.latestVerified(jid), null);
 });
 
 test('English: an unclear answer re-sends the menu in English', async () => {
-  const h = await englishHarness(goodReceipt(45));
-  const jid = h.phoneJid(4);
+  const h = await englishHarness(goodReceipt(50));
+  const jid = h.phoneJid(5);
   await h.say(h.textMsg(jid, '812'));
   const [retry] = await h.say(h.textMsg(jid, 'how much?'));
-  assert.ok(retry.startsWith('Please just reply with the number of the package (1–5).'), retry);
-  assert.ok(retry.includes('1. Trial lesson – 5 €'));
+  assert.ok(retry.startsWith('Please just reply with the number of the package (1–4).'), retry);
+  assert.ok(retry.includes('1. Trial lesson (unit 1) – 5 €'));
 });
 
 test('English: ordinary coachings are unaffected', async () => {
   const h = await createHarness({ classify: () => 'C2' });
   require('../src/settings').set('botLanguage', 'en');
-  const jid = h.phoneJid(5);
-  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'Hello')), ['Welcome! Which coaching are you interested in?']);
+  assert.deepStrictEqual(await h.say(h.textMsg(h.phoneJid(6), 'Hello')), ['Welcome! Which coaching are you interested in?']);
 });

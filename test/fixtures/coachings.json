@@ -47,22 +47,16 @@
     "price": 100,
     "groupLink": "https://chat.whatsapp.com/KxaB4OK7eeT8CCEX30ibVd?s=cl&p=i&iam=2"
   },
-  "CHEM_T1": {
-    "name": "Chemie Thema 1 bis 5",
+  "CHEM_H1": {
+    "name": "Chemie Erste Hälfte",
     "keywords": [],
-    "price": 45,
-    "groupLink": ""
+    "price": 50,
+    "groupLink": "https://chat.whatsapp.com/KxaB4OK7eeT8CCEX30ibVd?s=cl&p=i&iam=2"
   },
-  "CHEM_T2": {
-    "name": "Chemie Thema 5 bis 10",
+  "CHEM_H2": {
+    "name": "Chemie Zweite Hälfte",
     "keywords": [],
-    "price": 45,
-    "groupLink": ""
-  },
-  "CHEM_T3": {
-    "name": "Chemie Thema 10 bis 15",
-    "keywords": [],
-    "price": 45,
-    "groupLink": ""
+    "price": 50,
+    "groupLink": "https://chat.whatsapp.com/KxaB4OK7eeT8CCEX30ibVd?s=cl&p=i&iam=2"
   }
 }

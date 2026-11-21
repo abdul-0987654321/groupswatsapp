@@ -1,5 +1,5 @@
 {
-  "mode": "trial",
+  "mode": "live",
   "trial": {
     "recipient": "Ilyas Lang",
     "accountType": "iban",
@@ -10,9 +10,8 @@
     "prices": {
       "CHEM_PROBE": 1,
       "CHEM_KOMPLETT": 2,
-      "CHEM_T1": 3,
-      "CHEM_T2": 4,
-      "CHEM_T3": 1
+      "CHEM_H1": 3,
+      "CHEM_H2": 4
     },
     "timezone": "Europe/Berlin"
   },
@@ -34,9 +33,8 @@
     "prices": {
       "CHEM_PROBE": 1,
       "CHEM_KOMPLETT": 2,
-      "CHEM_T1": 3,
-      "CHEM_T2": 4,
-      "CHEM_T3": 1
+      "CHEM_H1": 3,
+      "CHEM_H2": 4
     },
     "timezone": "Asia/Karachi"
   }

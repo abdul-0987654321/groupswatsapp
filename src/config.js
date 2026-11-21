@@ -82,10 +82,19 @@ function loadMenus() {
     const options = (m.options || []).map((o) => {
       const coaching = coachings.find((c) => c.id === o.id);
       if (!coaching) throw new Error(`config/menus.json: "${id}" refers to unknown coaching "${o.id}"`);
+      const lang2 = (v, fallback) => (v ? Object.freeze({ de: String(v.de ?? fallback), en: String(v.en ?? v.de ?? fallback) }) : null);
       return Object.freeze({
         id: o.id,
         coaching,
-        label: Object.freeze({ de: String(o.label?.de || coaching.name), en: String(o.label?.en || o.label?.de || coaching.name) }),
+        label: lang2(o.label, coaching.name) || Object.freeze({ de: coaching.name, en: coaching.name }),
+        // optional second line under the menu entry, e.g. "alles mit drin"
+        note: lang2(o.note, ''),
+        // optional per-package wording that overrides the menu's own, e.g. a package that
+        // gets a Zoom link by DM instead of the group link
+        texts: Object.freeze({
+          de: Object.freeze({ ...(o.texts?.de || {}) }),
+          en: Object.freeze({ ...(o.texts?.en || o.texts?.de || {}) }),
+        }),
         keywords: (o.keywords || []).map((k) => String(k).toLowerCase()),
       });
     });
@@ -103,7 +112,13 @@ function loadMenus() {
 
 const menus = loadMenus();
 const menuByCoaching = new Map();
-for (const menu of menus) for (const o of menu.options) menuByCoaching.set(o.id, menu);
+const entryByCoaching = new Map(); // coaching id → { menu, option }
+for (const menu of menus) {
+  for (const o of menu.options) {
+    menuByCoaching.set(o.id, menu);
+    entryByCoaching.set(o.id, Object.freeze({ menu, option: o }));
+  }
+}
 
 module.exports = {
   MODE,
@@ -116,6 +131,8 @@ module.exports = {
   getCoaching: (id) => coachings.find((c) => c.id === id) || null,
   /** The menu a coaching belongs to, or null for a normal standalone coaching. */
   getMenuForCoaching: (id) => menuByCoaching.get(id) || null,
+  /** { menu, option } for a coaching sold through a menu, or null. */
+  getMenuEntry: (id) => entryByCoaching.get(id) || null,
   getMenu: (id) => menus.find((m) => m.id === id) || null,
   /** Coachings that may be found by keyword or AI: everything that is not a menu package. */
   detectableCoachings: Object.freeze(coachings.filter((c) => !menuByCoaching.has(c.id))),

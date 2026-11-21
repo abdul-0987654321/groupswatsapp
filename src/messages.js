@@ -16,9 +16,14 @@ const accountLines = (lang) =>
     ? `IBAN: ${BANK.account}\n`
     : `${lang === 'de' ? 'Kontonummer' : 'Account number'}: ${BANK.account}\n` + (BANK.bankName ? `Bank: ${BANK.bankName}\n` : '');
 
-/** "1. Probestunde – 5 €" … prices always come from config, never from the menu file. */
+/** "1. Probestunde – 5 €" plus an optional note line. Prices always come from config. */
 const menuOptions = (menu, lang) =>
-  menu.options.map((o, i) => `${i + 1}. ${o.label[lang]} – ${price(o.coaching)}`).join('\n');
+  menu.options
+    .map((o, i) => `${i + 1}. ${o.label[lang]} – ${price(o.coaching)}` + (o.note?.[lang] ? `\n   (${o.note[lang]})` : ''))
+    .join('\n');
+
+/** A package may override the menu's wording; otherwise the menu's own text is used. */
+const packageText = (entry, lang, key) => entry.option.texts[lang]?.[key] || entry.menu.texts[lang][key];
 
 const TEXTS = {
   de: {
@@ -53,8 +58,8 @@ const TEXTS = {
     // Package menus (config/menus.json): wording comes from the config file, the numbered list and prices from code.
     packageMenu: (menu) => `${menu.texts.de.intro}\n\n${menuOptions(menu, 'de')}`,
     packageMenuRetry: (menu) => `${menu.texts.de.retry || menu.texts.de.intro}\n\n${menuOptions(menu, 'de')}`,
-    packageRequestReceipt: (menu) => menu.texts.de.requestReceipt,
-    packageVerified: (menu, c) => `${menu.texts.de.verified}${c.groupLink ? `\n\n${c.groupLink}` : ''}`,
+    packageRequestReceipt: (entry) => packageText(entry, 'de', 'requestReceipt'),
+    packageVerified: (entry, c) => `${packageText(entry, 'de', 'verified')}${c.groupLink ? `\n\n${c.groupLink}` : ''}`,
     // Used when every coaching sits behind a menu, so there is no coaching name to ask for.
     askCode: () => 'Hallo! Schick mir bitte den Code aus der Ankündigung, dann zeige ich dir die passenden Pakete.',
   },
@@ -89,8 +94,8 @@ const TEXTS = {
     imageUnreadable: () => 'Sorry, I could not open the file. Please send the screenshot again.',
     packageMenu: (menu) => `${menu.texts.en.intro}\n\n${menuOptions(menu, 'en')}`,
     packageMenuRetry: (menu) => `${menu.texts.en.retry || menu.texts.en.intro}\n\n${menuOptions(menu, 'en')}`,
-    packageRequestReceipt: (menu) => menu.texts.en.requestReceipt,
-    packageVerified: (menu, c) => `${menu.texts.en.verified}${c.groupLink ? `\n\n${c.groupLink}` : ''}`,
+    packageRequestReceipt: (entry) => packageText(entry, 'en', 'requestReceipt'),
+    packageVerified: (entry, c) => `${packageText(entry, 'en', 'verified')}${c.groupLink ? `\n\n${c.groupLink}` : ''}`,
     askCode: () => 'Hello! Please send me the code from the announcement and I will show you the matching packages.',
   },
 };

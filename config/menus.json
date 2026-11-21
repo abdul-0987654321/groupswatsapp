@@ -7,21 +7,42 @@
         "intro": "Hey, welches Paket möchtest du wählen?",
         "requestReceipt": "Schick mir jetzt bitte den Zahlungsbeleg. Du kannst einfach einen Screenshot von der Überweisung als Bild hier reinschicken.",
         "verified": "Perfekt, du bist für die Nachhilfe freigeschaltet, vielen Dank!",
-        "retry": "Bitte antworte einfach mit der Nummer des Pakets (1–5)."
+        "retry": "Bitte antworte einfach mit der Nummer des Pakets (1–4)."
       },
       "en": {
         "intro": "Hey, which package would you like to choose?",
         "requestReceipt": "Please send me the payment receipt now. You can simply send a screenshot of the bank transfer as an image here.",
         "verified": "Perfect, you are now registered for the tutoring, thank you very much!",
-        "retry": "Please just reply with the number of the package (1–5)."
+        "retry": "Please just reply with the number of the package (1–4)."
       }
     },
     "options": [
-      { "id": "CHEM_PROBE",    "label": { "de": "Probestunde",      "en": "Trial lesson" },       "keywords": ["probestunde", "probe", "trial"] },
-      { "id": "CHEM_KOMPLETT", "label": { "de": "Komplettpaket",    "en": "Complete package" },   "keywords": ["komplettpaket", "komplett", "complete"] },
-      { "id": "CHEM_T1",       "label": { "de": "Thema 1 bis 5",    "en": "Topics 1 to 5" },      "keywords": [] },
-      { "id": "CHEM_T2",       "label": { "de": "Thema 5 bis 10",   "en": "Topics 5 to 10" },     "keywords": [] },
-      { "id": "CHEM_T3",       "label": { "de": "Thema 10 bis 15",  "en": "Topics 10 to 15" },    "keywords": [] }
+      {
+        "id": "CHEM_PROBE",
+        "label": { "de": "Probestunde (Einheit 1)", "en": "Trial lesson (unit 1)" },
+        "note":  { "de": "zum Reinschauen und Ausprobieren", "en": "to have a look and try it out" },
+        "keywords": ["probestunde", "probe", "trial"],
+        "texts": {
+          "de": { "verified": "Vielen Dank für deine Buchung, du bekommst den Zoom Link bis zu 1h vor dem Termin per PN" },
+          "en": { "verified": "Thank you for your booking, you will receive the Zoom link up to 1 hour before the appointment by direct message" }
+        }
+      },
+      {
+        "id": "CHEM_KOMPLETT",
+        "label": { "de": "Komplettpaket (alle 10 Einheiten / 20 Stunden)", "en": "Complete package (all 10 units / 20 hours)" },
+        "note":  { "de": "alles mit drin", "en": "everything included" },
+        "keywords": ["komplettpaket", "komplett", "complete"]
+      },
+      {
+        "id": "CHEM_H1",
+        "label": { "de": "Erste Hälfte (Einheiten 1–5)", "en": "First half (units 1–5)" },
+        "keywords": []
+      },
+      {
+        "id": "CHEM_H2",
+        "label": { "de": "Zweite Hälfte (Einheiten 6–10)", "en": "Second half (units 6–10)" },
+        "keywords": []
+      }
     ]
   }
 }

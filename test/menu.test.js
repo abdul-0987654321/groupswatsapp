@@ -2,28 +2,36 @@
 /**
  * Package menus: the Chemie Nachhilfe flow the client specified.
  *
- *   trigger "812" → numbered packages 1–5 → receipt requested (no bank details)
- *   → receipt verified → client's confirmation wording + group link
+ *   trigger "812" → numbered packages 1–4 → receipt requested (no bank details)
+ *   → receipt verified → confirmation
  *
- * Verification is NOT skipped for these packages: an unclear receipt still goes to review.
+ * Verification is NOT skipped: an unclear receipt still goes to the review queue.
+ * Only packages 2–4 lead into the group. The Probestunde is confirmed with its own
+ * wording and gets its Zoom link by DM from the client instead.
  */
 const test = require('node:test');
 const assert = require('node:assert');
 const sharp = require('sharp');
 const { createHarness } = require('./helpers/harness');
 
-const MENU =
-  'Hey, welches Paket möchtest du wählen?\n\n' +
-  '1. Probestunde – 5 €\n' +
-  '2. Komplettpaket – 100 €\n' +
-  '3. Thema 1 bis 5 – 45 €\n' +
-  '4. Thema 5 bis 10 – 45 €\n' +
-  '5. Thema 10 bis 15 – 45 €';
+const OPTIONS =
+  '1. Probestunde (Einheit 1) – 5 €\n' +
+  '   (zum Reinschauen und Ausprobieren)\n' +
+  '2. Komplettpaket (alle 10 Einheiten / 20 Stunden) – 100 €\n' +
+  '   (alles mit drin)\n' +
+  '3. Erste Hälfte (Einheiten 1–5) – 50 €\n' +
+  '4. Zweite Hälfte (Einheiten 6–10) – 50 €';
+const MENU = `Hey, welches Paket möchtest du wählen?\n\n${OPTIONS}`;
+const RETRY = `Bitte antworte einfach mit der Nummer des Pakets (1–4).\n\n${OPTIONS}`;
 const ASK_RECEIPT =
   'Schick mir jetzt bitte den Zahlungsbeleg. Du kannst einfach einen Screenshot von der Überweisung als Bild hier reinschicken.';
 const LINK = 'https://chat.whatsapp.com/KxaB4OK7eeT8CCEX30ibVd?s=cl&p=i&iam=2';
-const CONFIRMED_NO_LINK = 'Perfekt, du bist für die Nachhilfe freigeschaltet, vielen Dank!';
-const CONFIRMED = `${CONFIRMED_NO_LINK}\n\n${LINK}`;
+const CONFIRMED = `Perfekt, du bist für die Nachhilfe freigeschaltet, vielen Dank!\n\n${LINK}`;
+const PROBE_CONFIRMED =
+  'Vielen Dank für deine Buchung, du bekommst den Zoom Link bis zu 1h vor dem Termin per PN';
+
+/** option number → [coaching id, real price] */
+const PACKAGES = { 1: ['CHEM_PROBE', 5], 2: ['CHEM_KOMPLETT', 100], 3: ['CHEM_H1', 50], 4: ['CHEM_H2', 50] };
 
 const goodReceipt = (amount, extra = {}) => ({
   isPaymentReceipt: true, recipientName: 'Ilyas Lang', recipientIban: 'DE85 5505 0120 1200 6021 16', amount, currency: 'EUR',
@@ -36,72 +44,97 @@ const img = (seed) => {
 };
 const withReceipt = (data) => createHarness({ receipts: { next: () => data } });
 
-test('812 → menu, number → receipt request, valid receipt → confirmation + link', async () => {
-  const h = await withReceipt(goodReceipt(100));
-  const jid = h.phoneJid(1);
-  assert.deepStrictEqual(await h.say(h.textMsg(jid, '812')), [MENU]);
-  assert.deepStrictEqual(await h.say(h.textMsg(jid, '2')), [ASK_RECEIPT]);
-  assert.deepStrictEqual(await h.say(h.imageMsg(jid, await img(1))), [CONFIRMED]);
+/** Books one package end to end and returns what the customer was told at the end. */
+async function book(h, jid, option) {
+  await h.say(h.textMsg(jid, '812'));
+  await h.say(h.textMsg(jid, String(option)));
+  const out = await h.say(h.imageMsg(jid, await img(option * 7 + jid.length)));
+  return out;
+}
 
-  const paid = h.payments.latestVerified(jid);
-  assert.strictEqual(paid.coachingId, 'CHEM_KOMPLETT', 'the package the customer picked is what gets recorded');
+test('812 opens the menu with all four packages at their real prices', async () => {
+  const h = await withReceipt(goodReceipt(50));
+  assert.deepStrictEqual(await h.say(h.textMsg(h.phoneJid(1), '812')), [MENU]);
+});
+
+test('each package ends in the right confirmation, and only 2–4 get the link', async () => {
+  for (const [option, [id, price]] of Object.entries(PACKAGES)) {
+    const h = await withReceipt(goodReceipt(price));
+    const jid = h.phoneJid(Number(option));
+    const out = await book(h, jid, option);
+
+    assert.strictEqual(h.payments.latestVerified(jid).coachingId, id, `package ${option} recorded wrong`);
+    if (option === '1') {
+      assert.deepStrictEqual(out, [PROBE_CONFIRMED], 'Probestunde must use its own wording');
+      assert.ok(!out[0].includes('chat.whatsapp.com'), 'Probestunde must not receive the group link');
+    } else {
+      assert.deepStrictEqual(out, [CONFIRMED], `package ${option} should get the standard confirmation + link`);
+    }
+  }
+});
+
+test('the Probestunde confirmation promises the Zoom link by DM, not the group', async () => {
+  const h = await withReceipt(goodReceipt(5));
+  const jid = h.phoneJid(11);
+  const [out] = await book(h, jid, 1);
+  assert.ok(/Zoom Link/.test(out), out);
+  assert.ok(!/kürze|shortly/i.test(out), 'must not promise a group link later');
 });
 
 test('the receipt request never contains bank details (they are in the group announcement)', async () => {
   const h = await withReceipt(goodReceipt(5));
-  const jid = h.phoneJid(2);
+  const jid = h.phoneJid(12);
   await h.say(h.textMsg(jid, '812'));
   const [ask] = await h.say(h.textMsg(jid, '1'));
+  assert.strictEqual(ask, ASK_RECEIPT);
   for (const secret of ['IBAN', 'DE85', 'Empfänger', 'Verwendungszweck']) {
     assert.ok(!ask.includes(secret), `receipt request leaks "${secret}"`);
   }
 });
 
-test('the group link is never sent before the payment is verified', async () => {
-  const h = await withReceipt(goodReceipt(45));
-  const jid = h.phoneJid(3);
-  const before = [...(await h.say(h.textMsg(jid, '812'))), ...(await h.say(h.textMsg(jid, '4')))];
+test('no link or confirmation before the payment is verified', async () => {
+  const h = await withReceipt(goodReceipt(100));
+  const jid = h.phoneJid(13);
+  const before = [...(await h.say(h.textMsg(jid, '812'))), ...(await h.say(h.textMsg(jid, '2')))];
   for (const text of before) assert.ok(!text.includes('chat.whatsapp.com'), `link sent too early: ${text}`);
 });
 
 test('wrong amount → review queue, not access (verification is not skipped)', async () => {
-  const h = await withReceipt(goodReceipt(5)); // paid 5 € for the 100 € package
-  const jid = h.phoneJid(4);
-  await h.say(h.textMsg(jid, '812'));
-  await h.say(h.textMsg(jid, '2'));
-  const out = await h.say(h.imageMsg(jid, await img(2)));
+  const h = await withReceipt(goodReceipt(50)); // paid 50 € for the 100 € package
+  const jid = h.phoneJid(14);
+  const out = await book(h, jid, 2);
   assert.deepStrictEqual(out, ['Danke! Deine Zahlung wird kurz geprüft. Du bekommst gleich Bescheid.']);
   assert.strictEqual(h.payments.latestVerified(jid), null, 'no access on a wrong amount');
-  const [p] = h.payments.forCustomer(jid);
-  assert.strictEqual(p.status, h.payments.STATUS.NEEDS_REVIEW);
+  assert.strictEqual(h.payments.forCustomer(jid)[0].status, h.payments.STATUS.NEEDS_REVIEW);
   assert.ok(!out.join('\n').includes('chat.whatsapp.com'));
 });
 
-test('admin approval from the dashboard sends the client wording, not the standard text', async () => {
-  const h = await withReceipt(goodReceipt(5)); // 5 € against the 100 € package → review
-  const jid = h.phoneJid(5);
-  await h.say(h.textMsg(jid, '812'));
-  await h.say(h.textMsg(jid, '2'));
-  await h.say(h.imageMsg(jid, await img(3)));
-  const [p] = h.payments.forCustomer(jid);
-  const before = h.sent.length;
-  await h.conversation.approvePayment(p.id);
-  assert.deepStrictEqual(h.sent.slice(before).map((s) => s.text), [CONFIRMED]);
+test('admin approval sends the package wording — link for 3, Zoom text for 1', async () => {
+  for (const [option, expected] of [['3', CONFIRMED], ['1', PROBE_CONFIRMED]]) {
+    const h = await withReceipt(goodReceipt(7)); // wrong amount → lands in review
+    const jid = h.phoneJid(20 + Number(option));
+    await book(h, jid, option);
+    const [p] = h.payments.forCustomer(jid);
+    const before = h.sent.length;
+    const res = await h.conversation.approvePayment(p.id);
+    assert.deepStrictEqual(h.sent.slice(before).map((s) => s.text), [expected]);
+    assert.ok(!res.warning, `admin should not be warned: ${res.warning}`);
+  }
 });
 
 test('an unclear answer re-sends the menu and never starts a payment', async () => {
-  const h = await withReceipt(goodReceipt(45));
-  const jid = h.phoneJid(6);
+  const h = await withReceipt(goodReceipt(50));
+  const jid = h.phoneJid(15);
   await h.say(h.textMsg(jid, '812'));
-  const retry = 'Bitte antworte einfach mit der Nummer des Pakets (1–5).\n\n' + MENU.split('\n\n')[1];
-  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'was kostet das?')), [retry]);
-  assert.deepStrictEqual(await h.say(h.textMsg(jid, '9')), [retry]);
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, 'was kostet das?')), [RETRY]);
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, '9')), [RETRY], 'there is no package 9');
+  assert.deepStrictEqual(await h.say(h.textMsg(jid, '5')), [RETRY], 'package 5 no longer exists');
   assert.strictEqual(h.customers.get(jid).coachingId, null, 'no package chosen yet');
 });
 
 test('a receipt sent before picking a package is not accepted as payment', async () => {
-  const h = await withReceipt(goodReceipt(45));
-  const jid = h.phoneJid(7);
+  const h = await withReceipt(goodReceipt(50));
+  const jid = h.phoneJid(16);
   await h.say(h.textMsg(jid, '812'));
   const out = await h.say(h.imageMsg(jid, await img(4)));
   assert.ok(out[0].includes('Nummer des Pakets'), 'should ask for the package first');
@@ -110,87 +143,33 @@ test('a receipt sent before picking a package is not accepted as payment', async
 });
 
 test('"812" inside a sentence is not a booking trigger', async () => {
-  const h = await withReceipt(goodReceipt(45));
-  const jid = h.phoneJid(8);
-  const out = await h.say(h.textMsg(jid, 'Ich habe 812 Euro überwiesen'));
+  const h = await withReceipt(goodReceipt(50));
+  const out = await h.say(h.textMsg(h.phoneJid(17), 'Ich habe 812 Euro überwiesen'));
   assert.ok(!out[0].includes('welches Paket'), `menu opened from a sentence: ${out[0]}`);
 });
 
 test('packages are never found by keyword or AI — only through the menu', async () => {
   const h = await createHarness({ classify: () => 'CHEM_KOMPLETT' }); // AI tries to name a package
-  const jid = h.phoneJid(9);
+  const jid = h.phoneJid(18);
   const out = await h.say(h.textMsg(jid, 'Ich will das Komplettpaket'));
   assert.ok(!out.join('\n').includes('chat.whatsapp.com'));
   assert.strictEqual(h.customers.get(jid).coachingId, null);
 });
 
-test('a second package can be booked after the first (Thema first, then Komplettpaket)', async () => {
-  const amounts = [45, 100];
+test('a second package can be booked after the first', async () => {
+  const amounts = [5, 100];
   const h = await createHarness({ receipts: { next: () => goodReceipt(amounts.shift()) } });
-  const jid = h.phoneJid(10);
-  await h.say(h.textMsg(jid, '812'));
-  await h.say(h.textMsg(jid, '3')); // Thema 1 bis 5 → confirmed, no link
-  assert.deepStrictEqual(await h.say(h.imageMsg(jid, await img(5))), [CONFIRMED_NO_LINK]);
-  assert.deepStrictEqual(await h.say(h.textMsg(jid, '812')), [MENU]);
-  await h.say(h.textMsg(jid, '2')); // Komplettpaket → confirmed with the link
-  assert.deepStrictEqual(await h.say(h.imageMsg(jid, await img(6))), [CONFIRMED]);
+  const jid = h.phoneJid(19);
+  assert.deepStrictEqual(await book(h, jid, 1), [PROBE_CONFIRMED]);
+  assert.deepStrictEqual(await book(h, jid, 2), [CONFIRMED]);
   const ids = h.payments.forCustomer(jid).filter((p) => p.status === h.payments.STATUS.VERIFIED).map((p) => p.coachingId);
-  assert.deepStrictEqual(ids.sort(), ['CHEM_KOMPLETT', 'CHEM_T1']);
+  assert.deepStrictEqual(ids.sort(), ['CHEM_KOMPLETT', 'CHEM_PROBE']);
 });
 
 test('812 interrupts an ordinary coaching payment and switches to the menu', async () => {
   const h = await createHarness({ classify: () => 'C2' });
-  const jid = h.phoneJid(11);
+  const jid = h.phoneJid(30);
   await h.say(h.textMsg(jid, 'Money Coaching'));
   assert.deepStrictEqual(await h.say(h.textMsg(jid, '812')), [MENU]);
   assert.strictEqual(h.customers.get(jid).stage, 'ask_package');
-});
-
-// ---- only the Komplettpaket grants group access (client, 21 Nov) ----
-
-test('Komplettpaket gets the group link, the other packages do not', async () => {
-  const h = await withReceipt(goodReceipt(100));
-  const jid = h.phoneJid(20);
-  await h.say(h.textMsg(jid, '812'));
-  await h.say(h.textMsg(jid, '2')); // Komplettpaket
-  const [out] = await h.say(h.imageMsg(jid, await img(20)));
-  assert.ok(out.includes(LINK), 'Komplettpaket must receive the link');
-});
-
-test('a 5 EUR Probestunde is confirmed but never receives the link', async () => {
-  const h = await withReceipt(goodReceipt(5));
-  const jid = h.phoneJid(21);
-  await h.say(h.textMsg(jid, '812'));
-  await h.say(h.textMsg(jid, '1')); // Probestunde
-  const [out] = await h.say(h.imageMsg(jid, await img(21)));
-  assert.ok(!out.includes('chat.whatsapp.com'), `Probestunde leaked a group link: ${out}`);
-  assert.ok(!/kürze|shortly/i.test(out), `must not promise a link later: ${out}`);
-  assert.strictEqual(out, 'Perfekt, du bist für die Nachhilfe freigeschaltet, vielen Dank!');
-  assert.strictEqual(h.payments.latestVerified(jid).coachingId, 'CHEM_PROBE', 'payment is still recorded as verified');
-});
-
-test('the Thema packages are confirmed without a link too', async () => {
-  for (const [option, id, amount] of [['3', 'CHEM_T1', 45], ['4', 'CHEM_T2', 45], ['5', 'CHEM_T3', 45]]) {
-    const h = await withReceipt(goodReceipt(amount));
-    const jid = h.phoneJid(30 + Number(option));
-    await h.say(h.textMsg(jid, '812'));
-    await h.say(h.textMsg(jid, option));
-    const [out] = await h.say(h.imageMsg(jid, await img(30 + Number(option))));
-    assert.ok(!out.includes('chat.whatsapp.com'), `${id} leaked a group link`);
-    assert.strictEqual(h.payments.latestVerified(jid).coachingId, id);
-  }
-});
-
-test('approving a Probestunde from the dashboard also sends no link', async () => {
-  const h = await withReceipt(goodReceipt(4)); // wrong amount → review
-  const jid = h.phoneJid(40);
-  await h.say(h.textMsg(jid, '812'));
-  await h.say(h.textMsg(jid, '1'));
-  await h.say(h.imageMsg(jid, await img(40)));
-  const [p] = h.payments.forCustomer(jid);
-  const before = h.sent.length;
-  const res = await h.conversation.approvePayment(p.id);
-  const after = h.sent.slice(before).map((s) => s.text);
-  assert.ok(!after.join('\n').includes('chat.whatsapp.com'));
-  assert.ok(!res.warning, `admin should not be warned about a missing link: ${res.warning}`);
 });
