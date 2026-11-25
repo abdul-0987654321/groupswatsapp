@@ -56,12 +56,35 @@ function getMedia(m) {
   return null;
 }
 
+/**
+ * Stages where a booking is under way, so the bot keeps answering. Anything else (a brand
+ * new chat, or a finished booking) needs the trigger code before the bot says a word.
+ */
+const ACTIVE_STAGES = [STAGES.ASK_PACKAGE, STAGES.AWAITING_SCREENSHOT, STAGES.IN_REVIEW];
+
+/*
+ * True when every coaching sits behind a menu, so there is nothing a customer could name.
+ * Then the trigger code is the only way in and the bot stays silent until it sees one.
+ * With coachings that have keywords, the bot is the front door of the business and greets
+ * whoever writes, which is the behaviour those setups want.
+ */
+const TRIGGER_ONLY = detectableCoachings.length === 0;
+
 /** Messages that carry nothing a customer "said" (reactions, receipts, protocol updates). */
 function isSilent(m) {
   return Boolean(m.reactionMessage || m.protocolMessage || m.pollUpdateMessage || m.senderKeyDistributionMessage && Object.keys(m).length === 1);
 }
 
 // ---------- sending ----------
+
+/** Marks the chat read, but only once the bot has decided to answer. */
+async function markRead(msg) {
+  try {
+    await bot.markRead?.(msg);
+  } catch (err) {
+    log.warn(`Could not mark chat as read: ${err.message}`);
+  }
+}
 
 async function reply(customer, text) {
   await bot.sendText(customer.replyJid || customer.jid, text);
@@ -196,10 +219,26 @@ async function handleMessage(msg) {
 
   // A menu trigger ("812") opens that menu from any stage — except while a receipt is being
   // checked, and never instead of handling a receipt the customer just sent.
-  if (text && !media && customer.stage !== STAGES.IN_REVIEW) {
-    const menu = detectMenu(text);
-    if (menu) return startMenu(customer, menu);
+  const trigger = text && !media && customer.stage !== STAGES.IN_REVIEW ? detectMenu(text) : null;
+
+  /*
+   * The bot only takes part in a booking. Someone writing about anything else — a question,
+   * a different subject, a wrong number — gets no reply AND no read receipt, so the chat
+   * still shows up unread on the phone and the owner answers it himself. The message is
+   * still logged (and its image stored), so it is visible under "Chats" in the dashboard.
+   *
+   * It stays engaged while a booking is actually running, so a customer who has picked a
+   * package or is waiting for a review always gets an answer. Once the booking is confirmed
+   * the bot goes quiet again — the client's own spec ends the flow there. A customer who
+   * needs their link again just sends the code once more.
+   */
+  if (TRIGGER_ONLY && !trigger && !ACTIVE_STAGES.includes(customer.stage)) {
+    log.info(`No reply to ${customer.phone || customer.jid} (stage ${customer.stage}, no trigger) — left unread for the owner.`);
+    return false;
   }
+  await markRead(msg);
+
+  if (trigger) return startMenu(customer, trigger);
 
   switch (customer.stage) {
     case STAGES.VERIFIED: {
@@ -306,15 +345,6 @@ async function handleMessage(msg) {
 
 /** Customer hasn't chosen a coaching yet. Never lists the coachings. */
 async function handleAskStage(customer, text, isFirst) {
-  // Every coaching behind a menu: asking "which coaching?" would be unanswerable, so point
-  // the customer at the code from the announcement instead. (A trigger in the message was
-  // already handled before the stage switch.)
-  if (!detectableCoachings.length) {
-    customer.stage = STAGES.ASK_COACHING;
-    customer.askCount = 0;
-    customers.save(customer);
-    return reply(customer, msgs.askCode());
-  }
   const { id, notOffered, source } = text ? await detectCoaching(text) : { id: null };
   // Already paid for that coaching → just send that link again (no second payment).
   if (id && payments.verifiedFor(customer.jid, id)) return chooseCoaching(customer, id);

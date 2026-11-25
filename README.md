@@ -167,6 +167,13 @@ To check a receipt without saving anything or messaging anyone, use the command 
 - Plain text only: no buttons or interactive WhatsApp lists. Package menus (see above) are sent as plain numbered text, because Baileys cannot send interactive lists reliably.
 - The bot only replies to private messages and ignores groups, status and broadcasts. It never writes first.
 - Incoming messages are marked "seen" after about 1 second, then "typing…" shows for 2–3 seconds before every reply (configurable: `READ_MIN_MS`, `READ_MAX_MS`, `TYPING_MIN_MS`, `TYPING_MAX_MS`).
+- **The bot only joins a booking.** When every coaching sits behind a menu, a message that is
+  not the trigger code — and from someone who is not mid-booking — gets no reply and is
+  deliberately left **unread**, so it still stands out on the owner's phone and he answers it
+  himself. It is still logged under "Chats" in the dashboard. Once a booking is confirmed the
+  bot goes quiet again; the customer sends the code again if they need their link back.
+  With keyword coachings configured, the bot greets everyone as before.
+- A chat is marked as read only when the bot actually answers it.
 - The group link is sent only after the payment is verified. Customers never see a list of all coachings — a package menu shows only the packages of the one offer whose trigger code they sent.
 
 ## Clearing the trial data before launch

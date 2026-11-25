@@ -86,6 +86,12 @@ async function sendText(jid, text) {
   await sock.sendMessage(jid, { text });
 }
 
+/** Marks a chat read the way a person would: a short pause, then the receipt. */
+async function markReadAfterDelay(msg) {
+  await sleep(readDelay());
+  await markRead(msg);
+}
+
 async function markRead(msg) {
   try {
     await runtime.sock?.readMessages([msg.key]);
@@ -224,12 +230,10 @@ async function start() {
         const jid = msg.key?.remoteJid;
         if (!msg.message || msg.key.fromMe || !isPrivateChat(jid)) continue;
         void (async () => {
-          // While the bot is paused, leave messages unread so they stand out on the phone.
-          const paused = require('./settings').get('botEnabled') === false;
-          if (!paused) {
-            await sleep(readDelay());
-            await markRead(msg);
-          }
+          // Messages are NOT marked read here. The conversation decides whether the bot is
+          // going to answer at all, and only then marks the chat read (markRead on the
+          // transport). Anything the bot stays out of — another topic, a paused bot, a
+          // message from an admin — stays unread, so it still stands out on the phone.
           try {
             await messageHandler(msg);
           } catch (err) {
@@ -294,4 +298,4 @@ async function logoutAndRelink() {
   return start();
 }
 
-module.exports = { start, stop, logoutAndRelink, requestPairingCode, getStatus, isConnected, onMessage, sendText, downloadImage };
+module.exports = { start, stop, logoutAndRelink, requestPairingCode, getStatus, isConnected, onMessage, sendText, downloadImage, markRead: markReadAfterDelay };

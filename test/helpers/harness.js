@@ -44,10 +44,14 @@ async function createHarness({ classify = () => 'UNKNOWN', receipts = {} } = {})
   });
 
   const sent = [];
+  const readChats = []; // chats the bot marked as read — it should only do so when it answers
   let connected = true;
   const fakeBot = {
     onMessage() {},
     isConnected: () => connected,
+    async markRead(msg) {
+      readChats.push(msg.key.remoteJid);
+    },
     async sendText(jid, text) {
       if (!connected) throw new Error('WhatsApp ist nicht verbunden');
       sent.push({ jid, text });
@@ -77,6 +81,7 @@ async function createHarness({ classify = () => 'UNKNOWN', receipts = {} } = {})
   }
 
   return {
+    readChats,
     db, backend, conversation, customers, payments, sent, aiCalls, say, textMsg, imageMsg, pdfMsg, phoneJid,
     setConnected: (v) => { connected = v; },
   };
