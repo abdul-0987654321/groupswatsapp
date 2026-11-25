@@ -147,6 +147,7 @@ async function boot() {
   }
 
   conversation.attach(bot);
+  require('./zoom-reminder').start();
   state.ready = true;
 
   // On a Render deploy the old instance keeps running until this one is healthy, then gets SIGTERM

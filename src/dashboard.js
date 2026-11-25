@@ -5,12 +5,13 @@
  */
 
 const path = require('path');
-const { coachings, getCoaching, getMenuEntry, CURRENCY, MODE } = require('./config');
+const { coachings, getCoaching, getMenuEntry, CURRENCY, MODE, TIMEZONE } = require('./config');
 const payments = require('./payments');
 const customers = require('./customers');
 const conversation = require('./conversation');
 const db = require('./storage/db');
 const { berlinDate } = require('./verify');
+const settings = require('./settings');
 
 const CATEGORY_LABEL = process.env.CATEGORY_LABEL || 'Coaching';
 const { STATUS } = payments;
@@ -106,6 +107,38 @@ function mount(app) {
       res.status(400).json({ ok: false, error: err.message });
     }
   };
+
+  /**
+   * The next Probestunde meeting: when it is, who still needs the Zoom link, and whether
+   * the automatic send (one hour before) has already happened.
+   */
+  app.get('/api/zoom', wrap(() => {
+    const zoom = require('./zoom-reminder');
+    const mtg = zoom.meeting();
+    const ids = zoom.reminderPackageIds();
+    const record = settings.get('zoomSent') || { at: '', jids: [] };
+    const done = new Set(record.at === (mtg?.at || '') ? record.jids : []);
+    const booked = [...new Map(payments.all()
+      .filter((p) => p.status === STATUS.VERIFIED && ids.includes(p.coachingId))
+      .map((p) => [p.jid, p])).values()];
+    return {
+      ok: true,
+      timeZone: TIMEZONE, // times must be shown in the business's zone, not the viewer's
+      link: settings.get('zoomLink'),
+      meetingAt: settings.get('zoomMeetingAt'),
+      opensAt: mtg ? mtg.opensAt.toISOString() : null,
+      startsAt: mtg ? mtg.starts.toISOString() : null,
+      packages: ids.map((id) => getCoaching(id)?.name).filter(Boolean),
+      recipients: booked.map((p) => ({ name: p.name, phone: p.phone, sent: done.has(p.jid) })),
+      pending: booked.filter((p) => !done.has(p.jid)).length,
+    };
+  }));
+
+  /** "Jetzt senden" — sends the link immediately, skipping the one-hour window. */
+  app.post('/api/zoom/send-now', wrap(async () => {
+    if (!bot.isConnected()) throw new Error('WhatsApp ist nicht verbunden.');
+    return { ok: true, ...(await require('./zoom-reminder').run({ force: true })) };
+  }));
 
   app.get('/api/overview', wrap(() => {
     const list = payments.all();

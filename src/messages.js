@@ -31,8 +31,8 @@ const menuOptions = (menu, lang) =>
  * typed IBAN in the message would be shown to customers while payments were verified against
  * a different one, and every single transfer would fail as "Empfänger-IBAN stimmt nicht".
  */
-const packageText = (entry, lang, key) => {
-  const raw = entry.option.texts[lang]?.[key] || entry.menu.texts[lang][key];
+const packageText = (entry, lang, key, extra = {}) => {
+  const raw = entry.option.texts[lang]?.[key] || entry.menu.texts[lang]?.[key] || '';
   const vars = {
     recipient: BANK.recipient,
     iban: BANK.account,
@@ -42,6 +42,7 @@ const packageText = (entry, lang, key) => {
     paket: String(entry.option.number),
     preis: price(entry.option.coaching),
     price: price(entry.option.coaching),
+    ...extra,
   };
   return String(raw).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
 };
@@ -81,6 +82,7 @@ const TEXTS = {
     packageMenuRetry: (menu) => `${menu.texts.de.retry || menu.texts.de.intro}\n\n${menuOptions(menu, 'de')}`,
     packageRequestReceipt: (entry) => packageText(entry, 'de', 'requestReceipt'),
     packageVerified: (entry, c) => `${packageText(entry, 'de', 'verified')}${c.groupLink ? `\n\n${c.groupLink}` : ''}`,
+    packageReminder: (entry, extra) => packageText(entry, 'de', 'reminder', extra),
   },
   en: {
     welcome: () => 'Welcome! Which coaching are you interested in?',
@@ -115,6 +117,7 @@ const TEXTS = {
     packageMenuRetry: (menu) => `${menu.texts.en.retry || menu.texts.en.intro}\n\n${menuOptions(menu, 'en')}`,
     packageRequestReceipt: (entry) => packageText(entry, 'en', 'requestReceipt'),
     packageVerified: (entry, c) => `${packageText(entry, 'en', 'verified')}${c.groupLink ? `\n\n${c.groupLink}` : ''}`,
+    packageReminder: (entry, extra) => packageText(entry, 'en', 'reminder', extra),
   },
 };
 

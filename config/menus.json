@@ -39,10 +39,12 @@
         ],
         "texts": {
           "de": {
-            "verified": "Vielen Dank für deine Buchung, du bekommst den Zoom Link bis zu 1h vor dem Termin per PN"
+            "verified": "Vielen Dank für deine Buchung, du bekommst den Zoom Link bis zu 1h vor dem Termin per PN",
+            "reminder": "Hallo! Dein Probetermin startet um {zeit} Uhr. Hier ist dein Zoom-Link:\n\n{zoomlink}\n\nBis gleich!"
           },
           "en": {
-            "verified": "Thank you for your booking, you will receive the Zoom link up to 1 hour before the appointment by direct message"
+            "verified": "Thank you for your booking, you will receive the Zoom link up to 1 hour before the appointment by direct message",
+            "reminder": "Hello! Your trial lesson starts at {zeit}. Here is your Zoom link:\n\n{zoomlink}\n\nSee you soon!"
           }
         }
       },

@@ -428,6 +428,7 @@ async function resendLink(id) {
 function attach(b) {
   bot = b;
   alerts.setBot(b);
+  require('./zoom-reminder').attach(b);
   bot.onMessage(enqueue);
 }
 

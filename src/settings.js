@@ -3,7 +3,12 @@
 
 const db = require('./storage/db');
 
-const DEFAULTS = { botEnabled: true, botLanguage: 'de', adminNumbers: [], alertOnReview: true, alertOnVerified: true };
+const DEFAULTS = {
+  botEnabled: true, botLanguage: 'de', adminNumbers: [], alertOnReview: true, alertOnVerified: true,
+  // Next Probestunde: the Zoom link and when it starts (local wall time, "2026-11-24T19:30").
+  // Packages whose menu entry has a "reminder" text get the link an hour beforehand.
+  zoomLink: '', zoomMeetingAt: '', zoomSent: { at: '', jids: [] },
+};
 
 // Validators return the cleaned value or throw.
 const VALIDATE = {
@@ -31,6 +36,21 @@ const VALIDATE = {
   },
   alertOnReview: (v) => Boolean(v),
   alertOnVerified: (v) => Boolean(v),
+  zoomLink: (v) => {
+    const link = String(v || '').trim();
+    if (link && !/^https?:\/\/\S+$/i.test(link)) throw new Error('Der Zoom-Link muss mit https:// beginnen');
+    return link;
+  },
+  // Local wall time in the configured time zone, e.g. "2026-11-24T19:30". Empty = no meeting.
+  zoomMeetingAt: (v) => {
+    const at = String(v || '').trim();
+    if (!at) return '';
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(at)) throw new Error('Ungültiges Datum (erwartet: JJJJ-MM-TTThh:mm)');
+    if (Number.isNaN(Date.parse(at + ':00'))) throw new Error('Ungültiges Datum');
+    return at;
+  },
+  // internal bookkeeping: who already got the link, for which meeting
+  zoomSent: (v) => ({ at: String(v?.at || ''), jids: [...new Set((v?.jids || []).map(String))] }),
 };
 
 function get(key) {
@@ -46,7 +66,7 @@ function set(key, value) {
 }
 
 // Settings the dashboard may read and change through /api/settings.
-const PUBLIC = ['botEnabled', 'botLanguage', 'adminNumbers', 'alertOnReview', 'alertOnVerified'];
+const PUBLIC = ['botEnabled', 'botLanguage', 'adminNumbers', 'alertOnReview', 'alertOnVerified', 'zoomLink', 'zoomMeetingAt'];
 
 /** Next number for "K" (customers) or "Z" (payments); never reuses a number, even after deletes. */
 function nextNumber(prefix, existingMax) {

@@ -176,6 +176,30 @@ To check a receipt without saving anything or messaging anyone, use the command 
 - A chat is marked as read only when the bot actually answers it.
 - The group link is sent only after the payment is verified. Customers never see a list of all coachings — a package menu shows only the packages of the one offer whose trigger code they sent.
 
+## Zoom reminder for the Probestunde
+
+A package whose menu entry has a `reminder` text gets that text sent automatically **one hour
+before the meeting**, with the Zoom link. Set the meeting in the dashboard under
+**Einstellungen → Probetermin: Zoom-Link**: a date/time and the link. The time is local wall
+time in the configured time zone (`timezone` in `config/payment.json`), the way a Zoom
+invitation reads it.
+
+The card lists everyone who booked that package and whether they already have the link.
+**Jetzt sofort senden** sends it immediately, ignoring the one-hour window — useful if the
+meeting was arranged at short notice.
+
+Each customer gets the link once per meeting (`zoomSent` in settings). Change the meeting
+time and everyone is due again, which is how the next session is set up: new date, new link,
+save. Someone who books after the window has opened still gets the link on the next check
+(every minute). A send that fails is retried rather than being recorded as delivered.
+
+The placeholders `{zoomlink}` and `{zeit}` are filled in at send time; the rest of the menu
+placeholders work here too.
+
+**Worth knowing:** the reminder only fires while the service is awake. On Render's free tier a
+service that gets no traffic can be spun down — if that happens the link goes out late, on the
+next check after it wakes. "Jetzt sofort senden" is the manual fallback.
+
 ## Clearing the trial data before launch
 
 A trial run leaves test customers, payments and chat messages in the Google Sheet.

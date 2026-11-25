@@ -20,6 +20,8 @@ async function createHarness({ classify = () => 'UNKNOWN', receipts = {} } = {})
   const conversation = require('../../src/conversation');
   const customers = require('../../src/customers');
   const payments = require('../../src/payments');
+  const settings = require('../../src/settings');
+  const zoom = require('../../src/zoom-reminder');
   const backend = createMemoryBackend();
   await db.init(backend);
 
@@ -81,6 +83,9 @@ async function createHarness({ classify = () => 'UNKNOWN', receipts = {} } = {})
   }
 
   return {
+    settings,
+    zoom,
+    receipts,
     readChats,
     db, backend, conversation, customers, payments, sent, aiCalls, say, textMsg, imageMsg, pdfMsg, phoneJid,
     setConnected: (v) => { connected = v; },

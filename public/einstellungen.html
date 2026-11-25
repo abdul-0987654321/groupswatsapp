@@ -36,6 +36,20 @@
     </div>
   </div>
 
+  <div class="card" id="zoomCard">
+    <h2>🎥 Probetermin: Zoom-Link</h2>
+    <p class="muted" style="margin-top:0">Wer die <b>Probestunde</b> gebucht hat, bekommt diesen Link automatisch <b>1 Stunde vor dem Termin</b> per WhatsApp. Trage vor jedem Termin das Datum und den aktuellen Zoom-Link ein.</p>
+    <label class="field" for="zoomMeetingAt">Datum und Uhrzeit des Termins</label>
+    <input type="datetime-local" id="zoomMeetingAt" style="max-width:260px">
+    <label class="field" for="zoomLink">Zoom-Link</label>
+    <input type="url" id="zoomLink" placeholder="https://us06web.zoom.us/j/…" style="max-width:600px">
+    <div class="row" style="margin-top:12px">
+      <button class="primary" id="saveZoom">Speichern</button>
+      <button id="sendZoomNow">Jetzt sofort senden</button>
+    </div>
+    <div id="zoomInfo" class="muted" style="margin-top:12px"></div>
+  </div>
+
   <div class="card">
     <h2>🔒 Dashboard-Passwort ändern</h2>
     <p class="muted" style="margin-top:0" id="pwInfo"></p>
@@ -112,6 +126,50 @@ document.getElementById('saveAlerts').onclick = () =>
     document.getElementById('adminNumbers').value = j.settings.adminNumbers.map((n) => '+' + n).join(', ');
   }).catch(() => {});
 
+
+// ---------- Probetermin / Zoom ----------
+async function loadZoom() {
+  const z = await api('/api/zoom');
+  document.getElementById('zoomLink').value = z.link || '';
+  document.getElementById('zoomMeetingAt').value = z.meetingAt || '';
+  const box = document.getElementById('zoomInfo');
+  if (!z.packages.length) { box.textContent = 'Kein Paket mit Erinnerung konfiguriert.'; return; }
+  if (!z.meetingAt || !z.link) {
+    box.textContent = 'Noch kein Termin hinterlegt – es wird nichts verschickt.';
+    return;
+  }
+  // Always in the business's time zone — the person looking may be sitting elsewhere.
+  const opens = new Date(z.opensAt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short', timeZone: z.timeZone });
+  const starts = new Date(z.startsAt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short', timeZone: z.timeZone });
+  const rows = z.recipients.map((r) => `<tr><td>${esc(r.name || '')}</td><td>${esc(r.phone || '')}</td><td>${r.sent ? '<span class="pill green">gesendet</span>' : '<span class="pill yellow">wartet</span>'}</td></tr>`).join('');
+  const status = !z.recipients.length
+    ? 'Bisher hat niemand dieses Paket gebucht – es wird also noch nichts verschickt.'
+    : z.pending ? `Noch offen: <b>${z.pending}</b>.` : 'Alle haben den Link bereits bekommen.';
+  box.innerHTML = `
+    <p style="margin:0 0 8px">Termin: <b>${esc(starts)}</b> · der Link geht automatisch raus am <b>${esc(opens)}</b>
+    an alle, die <b>${z.packages.map(esc).join(', ')}</b> gebucht haben. ${status}</p>
+    ${rows ? `<table><thead><tr><th>Name</th><th>Telefon</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>` : ''}`;
+}
+
+document.getElementById('saveZoom').onclick = async () => {
+  try {
+    await save({
+      zoomMeetingAt: document.getElementById('zoomMeetingAt').value,
+      zoomLink: document.getElementById('zoomLink').value.trim(),
+    }, 'Termin gespeichert.');
+    await loadZoom();
+  } catch (e) { /* save() already reported it */ }
+};
+
+document.getElementById('sendZoomNow').onclick = async () => {
+  if (!await ui.confirm('Den Zoom-Link jetzt sofort an alle Probestunden-Kunden senden?')) return;
+  try {
+    const r = await api('/api/zoom/send-now', { method: 'POST', body: '{}' });
+    ui.toast(r.sent ? `Link an ${r.sent} Kunde(n) gesendet.` : (r.reason || 'Niemand zu benachrichtigen.'), r.sent ? 'ok' : 'err', 6000);
+    await loadZoom();
+  } catch (e) { ui.toast(e.message, 'err', 7000); }
+};
+
 document.getElementById('testAlert').onclick = async () => {
   try {
     const j = await api('/api/alerts/test', { method: 'POST', body: '{}' });
@@ -133,6 +191,7 @@ document.getElementById('pwForm').onsubmit = async (e) => {
   } catch (err) { ui.toast(err.message, 'err', 7000); }
 };
 load();
+loadZoom().catch(() => {});
 </script>
 </body>
 </html>
